@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>工作流详情</title>
+    <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; }
+    .detail { background: #fff; width: 900px; margin: 40px auto; padding: 32px 40px; border-radius: 10px; box-shadow: 0 2px 12px #e0e0e0; }
+    h2 { text-align: center; margin-bottom: 24px; }
+    .row { margin: 12px 0; font-size: 16px; }
+    .row label { display: inline-block; width: 80px; color: #888; vertical-align: top; }
+    .main-img, .big-img { border-radius: 6px; border: 1px solid #eee; margin: 4px 0; object-fit: contain; background: #fff; }
+    .main-img { width: 120px; height: 120px; }
+    .big-img { width: 120px; height: 120px; }
+    .pics-list { margin: 8px 0; }
+    a { display: block; text-align: center; margin-top: 24px; color: #4f8cff; }
+    .row.flex { display: flex; align-items: center; }
+    .row.flex .label { width: 80px; color: #888; }
+    .row.flex .value { margin-right: 32px; }
+    .desc-rtf { background: #fafbfc; border: 1px solid #eee; border-radius: 6px; padding: 12px 16px; min-height: 40px; margin: 8px 0; font-size: 15px; color: #333; word-break: break-all; }
+    .img-preview img, .pics-list img, .main-img, .big-img, .thumb {
+        width: 120px;
+        height: 120px;
+        object-fit: contain;
+        border-radius: 6px;
+        border: 1px solid #eee;
+        background: #fff;
+        display: inline-block;
+    }
+    .img-preview img[onerror], .pics-list img[onerror], .main-img[onerror], .big-img[onerror], .thumb[onerror] {
+        content: '';
+        background: #f8d7da url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="%23f8d7da"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="16" fill="%23a94442">加载失败</text></svg>') center center no-repeat;
+    }
+    </style>
+</head>
+<body>
+<div class="detail">
+    <h2>工作流详情</h2>
+    <div class="row flex"><span class="label">名称:</span> <span class="value">{{ w.name }}</span><span class="label">类型:</span> <span>{{ w.flowType }}</span></div>
+    <div class="row"><label>简介:</label> <div class="desc-rtf">{{ w.desc|safe }}</div></div>
+    <div class="row"><label>主图:</label><br><img class="main-img" src="{{ w.picture }}" alt="主图"></div>
+    <div class="row"><label>大图:</label><br><img class="big-img" src="{{ w.bigPicture }}" alt="大图"></div>
+    <div class="row"><label>图片组:</label><div class="pics-list">{% for p in w.pictures %}<img src="{{ p }}" style="width:120px;height:120px;object-fit:contain;border-radius:6px;margin:4px;border:1px solid #eee;background:#fff;">{% endfor %}</div></div>
+    <div class="row">
+        <label>工作流 JSON:</label>
+        <div class="workflow-json-box" style="background:#fafbfc;border:1px solid #eee;border-radius:6px;padding:12px 16px;min-height:40px;margin:8px 0;font-size:15px;color:#333;word-break:break-all;font-family:monospace;white-space:pre-wrap;">{{ w.workflow|replace('\n', '<br>')|safe }}</div>
+    </div>
+    <a href="/admin/workflow">返回列表</a>
+</div>
+</body>
+</html>
