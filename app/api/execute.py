@@ -32,7 +32,6 @@ def execute_workflow(
     if not workflow_db:
         raise HTTPException(status_code=404, detail="Workflow not found")
     if workflow_db.flowType == "local":
-        # comfyUI 本地执行
         try:
             flow_data = json.loads(workflow_db.workflow) if workflow_db.workflow else {}
         except Exception:
@@ -40,13 +39,28 @@ def execute_workflow(
         client_id = getattr(params, "client_id", uuid.uuid4().hex)
         extra_data = flow_data.get("extra_data") or getattr(params, "extra_data", {})
         prompt = flow_data.get("prompt") or getattr(params, "prompt", {})
-        # 动态替换 class_type=LoadImage 的 image 字段
-        new_image = params.get("image") if isinstance(params, dict) else None
-        if new_image and isinstance(prompt, dict):
-            for node in prompt.values():
-                if isinstance(node, dict) and node.get("class_type") == "LoadImage":
-                    if "inputs" in node and isinstance(node["inputs"], dict):
-                        node["inputs"]["image"] = new_image
+        # 动态参数注入：path 只允许从 input_schema 读取，不能从 params 读取 path 字段
+        input_schema = getattr(workflow_db, "input_schema", None)
+        if input_schema:
+            try:
+                schema = json.loads(input_schema) if isinstance(input_schema, str) else input_schema
+                for item in schema.get("inputs", []):
+                    param_name = item.get("name")
+                    param_path = item.get("path")  # 只从 input_schema 读取
+                    alias = item.get("alias")
+                    # 优先用 alias 匹配 params，否则用 name
+                    param_key = alias if alias and alias in params else param_name
+                    if param_key and param_path and param_key in params:
+                        keys = param_path.split('.')
+                        node = prompt
+                        for k in keys[:-1]:
+                            node = node.get(k) if isinstance(node, dict) else None
+                            if node is None:
+                                break
+                        if node is not None and isinstance(node, dict):
+                            node[keys[-1]] = params[param_key]
+            except Exception as e:
+                print(f"input_schema注入参数异常: {e}")
         payload = {
             "client_id": client_id,
             "prompt": prompt,
@@ -68,7 +82,6 @@ def execute_workflow(
             "sec-ch-ua-platform": '"Windows"',
             "Content-Type": "application/json"
         }
-        # 类型校验，防止 prompt 不是 dict
         if not isinstance(payload["prompt"], dict):
             return {"error": "prompt must be a dict", "actual_type": str(type(payload["prompt"])), "prompt": payload["prompt"]}
         try:

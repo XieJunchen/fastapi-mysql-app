@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Text
 from sqlalchemy.dialects.sqlite import JSON
 from app.db.database import Base
 import datetime
@@ -15,3 +15,4 @@ class Workflow(Base):
     bigPicture = Column(String(255))
     pictures = Column(JSON)
     flowType = Column(String(50), default="local")
+    input_schema = Column(Text, nullable=True)  # 新增字段，存储输入参数定义

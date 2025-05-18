@@ -87,6 +87,10 @@
         <textarea name="workflow" style="font-family:monospace;min-height:180px;">{{ w.workflow if w else '' }}</textarea>
         <div style="font-size:12px;color:#888;">请填写符合 comfyUI/runningHub 的 JSON 工作流定义</div>
     </div>
+    <div class="row">
+        <label for="input_schema">输入参数定义(input_schema)：</label>
+        <textarea name="input_schema" placeholder='{"inputs": [{"name": "image", "type": "str", "path": "1.inputs.image"}]}' style="min-height:60px;">{{ w.input_schema if w and w.input_schema is not none else '' }}</textarea>
+    </div>
     <button type="submit">{{ submit_text }}</button>
     <a href="/admin/workflow">返回列表</a>
 </form>

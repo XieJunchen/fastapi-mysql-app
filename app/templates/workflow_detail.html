@@ -44,6 +44,14 @@
         <label>工作流 JSON:</label>
         <div class="workflow-json-box" style="background:#fafbfc;border:1px solid #eee;border-radius:6px;padding:12px 16px;min-height:40px;margin:8px 0;font-size:15px;color:#333;word-break:break-all;font-family:monospace;white-space:pre-wrap;">{{ w.workflow|replace('\n', '<br>')|safe }}</div>
     </div>
+    <div class="row">
+        <div class="label" style="white-space:nowrap;">输入参数定义(input_schema):</div>
+        {% if w.input_schema %}
+            <pre class="workflow-json-box" style="background:#fafbfc;border:1px solid #eee;border-radius:6px;padding:12px 16px;min-height:40px;margin:0;font-size:15px;color:#333;word-break:break-all;font-family:monospace;white-space:pre-wrap;">{{ w.input_schema }}</pre>
+        {% else %}
+            <span class="workflow-json-box" style="background:#fafbfc;border:1px solid #eee;border-radius:6px;padding:12px 16px;min-height:40px;margin:0;font-size:15px;color:#333;">无</span>
+        {% endif %}
+    </div>
     <a href="/admin/workflow">返回列表</a>
 </div>
 </body>

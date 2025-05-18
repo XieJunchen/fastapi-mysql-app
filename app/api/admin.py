@@ -53,6 +53,7 @@ def admin_workflow_add(
     bigPicture: str = Form(""),
     pictures: List[str] = Form([]),
     workflow: str = Form(""),
+    input_schema: str = Form(None),
     db: Session = Depends(get_db)
 ):
     obj = Workflow(
@@ -62,7 +63,8 @@ def admin_workflow_add(
         picture=picture,
         bigPicture=bigPicture,
         pictures=[p.strip() for p in pictures if p.strip()],
-        workflow=workflow
+        workflow=workflow,
+        input_schema=input_schema
     )
     db.add(obj)
     db.commit()
@@ -101,6 +103,7 @@ def admin_workflow_edit(
     bigPicture: str = Form(""),
     pictures: List[str] = Form([]),
     workflow: str = Form(""),
+    input_schema: str = Form(None),
     db: Session = Depends(get_db)
 ):
     w = db.query(Workflow).filter_by(id=workflow_id).first()
@@ -113,6 +116,7 @@ def admin_workflow_edit(
     w.bigPicture = bigPicture
     w.pictures = [p.strip() for p in pictures if p.strip()]
     w.workflow = workflow
+    w.input_schema = input_schema
     db.commit()
     return RedirectResponse(url="/admin/workflow", status_code=302)
 
@@ -140,5 +144,4 @@ def admin_workflow_detail(workflow_id: int, request: Request, db: Session = Depe
     if not isinstance(w.pictures, list):
         w.pictures = []
     w.pictures = [p for p in w.pictures if isinstance(p, str) and p.strip()]
-    print('DEBUG workflow_detail w.pictures:', w.pictures, 'len:', len(w.pictures))
     return templates.TemplateResponse("workflow_detail.html", {"request": request, "w": w})
