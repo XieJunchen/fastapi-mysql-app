@@ -286,8 +286,12 @@ def upload_and_forward_image(file: UploadFile = File(...)):
             token = q.upload_token(QINIU_BUCKET_NAME, key, 3600)
             ret, info = put_data(token, key, file_bytes)
             if info.status_code == 200:
-                url = f"{QINIU_DOMAIN}/{key}"
-                return {"name": key, "url": url, "type": "qiniu"}
+                # 判断 QINIU_DOMAIN 是否带 http/https
+                domain = QINIU_DOMAIN
+                if not domain.startswith("http://") and not domain.startswith("https://"):
+                    domain = "http://" + domain
+                url = f"{domain}/{key}"
+                return {"name": url, "url": url, "type": "qiniu"}
             else:
                 return {"msg": "七牛云上传失败", "error": str(info), "type": "qiniu"}
         except Exception as e:
