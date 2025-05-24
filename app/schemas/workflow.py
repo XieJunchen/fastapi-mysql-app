@@ -12,6 +12,7 @@ class MyTableBase(BaseModel):
     pictures: Optional[List[str]] = None
     flowType: Optional[str] = "local"
     input_schema: Optional[str] = None  # 新增字段
+    output_schema: Optional[str] = None  # 新增字段
 
 class MyTableCreate(MyTableBase):
     pass

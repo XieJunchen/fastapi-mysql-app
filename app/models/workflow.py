@@ -16,3 +16,4 @@ class Workflow(Base):
     pictures = Column(JSON)
     flowType = Column(String(50), default="local")
     input_schema = Column(Text, nullable=True)  # 新增字段，存储输入参数定义
+    output_schema = Column(Text, nullable=True)  # 新增字段，存储输出参数定义

@@ -38,7 +38,7 @@
     <a href="/admin/workflow/add" class="button">新增工作流</a>
 </div>
 <table>
-    <tr><th>ID</th><th>名称</th><th>主图</th><th>类型</th><th>输入参数</th><th>操作</th></tr>
+    <tr><th>ID</th><th>名称</th><th>主图</th><th>类型</th><th>输入参数</th><th>输出参数</th><th>操作</th></tr>
     {% for w in workflows %}
     <tr>
         <td>{{ w.id }}</td>
@@ -46,6 +46,7 @@
         <td><img class="thumb" src="{{ w.picture }}" alt="主图"></td>
         <td>{{ w.flowType }}</td>
         <td style="max-width:200px;word-break:break-all;font-size:12px;">{{ w.input_schema }}</td>
+        <td style="max-width:200px;word-break:break-all;font-size:12px;">{{ w.output_schema }}</td>
         <td>
             <a href="/admin/workflow/detail/{{ w.id }}" class="button">详情</a>
             <a href="/admin/workflow/edit/{{ w.id }}" class="button">编辑</a>

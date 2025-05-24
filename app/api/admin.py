@@ -54,6 +54,7 @@ def admin_workflow_add(
     pictures: List[str] = Form([]),
     workflow: str = Form(""),
     input_schema: str = Form(None),
+    output_schema: str = Form(None),
     db: Session = Depends(get_db)
 ):
     obj = Workflow(
@@ -64,7 +65,8 @@ def admin_workflow_add(
         bigPicture=bigPicture,
         pictures=[p.strip() for p in pictures if p.strip()],
         workflow=workflow,
-        input_schema=input_schema
+        input_schema=input_schema,
+        output_schema=output_schema
     )
     db.add(obj)
     db.commit()
@@ -104,6 +106,7 @@ def admin_workflow_edit(
     pictures: List[str] = Form([]),
     workflow: str = Form(""),
     input_schema: str = Form(None),
+    output_schema: str = Form(None),
     db: Session = Depends(get_db)
 ):
     w = db.query(Workflow).filter_by(id=workflow_id).first()
@@ -117,6 +120,7 @@ def admin_workflow_edit(
     w.pictures = [p.strip() for p in pictures if p.strip()]
     w.workflow = workflow
     w.input_schema = input_schema
+    w.output_schema = output_schema
     db.commit()
     return RedirectResponse(url="/admin/workflow", status_code=302)
 
