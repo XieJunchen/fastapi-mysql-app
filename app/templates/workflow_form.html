@@ -53,6 +53,13 @@
             <option value="runningHub" {% if w and w.flowType=='runningHub' %}selected{% endif %}>runningHub</option>
         </select>
     </div>
+    <div class="row flex">
+        <span class="label">状态:</span>
+        <select name="status" style="flex:1;">
+            <option value="1" {% if w and w.status==1 %}selected{% endif %}>上线</option>
+            <option value="0" {% if w and w.status==0 %}selected{% endif %}>下线</option>
+        </select>
+    </div>
     <div class="row">
         <label>简介:</label>
         <textarea name="desc">{{ w.desc if w else '' }}</textarea>

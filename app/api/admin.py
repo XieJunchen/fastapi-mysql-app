@@ -55,6 +55,7 @@ def admin_workflow_add(
     workflow: str = Form(""),
     input_schema: str = Form(None),
     output_schema: str = Form(None),
+    status: int = Form(1),
     db: Session = Depends(get_db)
 ):
     obj = Workflow(
@@ -66,7 +67,8 @@ def admin_workflow_add(
         pictures=[p.strip() for p in pictures if p.strip()],
         workflow=workflow,
         input_schema=input_schema,
-        output_schema=output_schema
+        output_schema=output_schema,
+        status=status
     )
     db.add(obj)
     db.commit()
@@ -95,6 +97,7 @@ def admin_workflow_edit_form(workflow_id: int, request: Request, db: Session = D
         "submit_text": "保存修改"
     })
 
+# 编辑
 @router.post("/admin/workflow/edit/{workflow_id}")
 def admin_workflow_edit(
     workflow_id: int,
@@ -107,6 +110,7 @@ def admin_workflow_edit(
     workflow: str = Form(""),
     input_schema: str = Form(None),
     output_schema: str = Form(None),
+    status: int = Form(1),
     db: Session = Depends(get_db)
 ):
     w = db.query(Workflow).filter_by(id=workflow_id).first()
@@ -121,6 +125,7 @@ def admin_workflow_edit(
     w.workflow = workflow
     w.input_schema = input_schema
     w.output_schema = output_schema
+    w.status = status
     db.commit()
     return RedirectResponse(url="/admin/workflow", status_code=302)
 
@@ -149,3 +154,21 @@ def admin_workflow_detail(workflow_id: int, request: Request, db: Session = Depe
         w.pictures = []
     w.pictures = [p for p in w.pictures if isinstance(p, str) and p.strip()]
     return templates.TemplateResponse("workflow_detail.html", {"request": request, "w": w})
+
+@router.post("/admin/workflow/online/{workflow_id}")
+def admin_workflow_online(workflow_id: int, db: Session = Depends(get_db)):
+    w = db.query(Workflow).filter_by(id=workflow_id).first()
+    if not w:
+        raise HTTPException(status_code=404, detail="未找到")
+    w.status = 1
+    db.commit()
+    return RedirectResponse(url="/admin/workflow", status_code=302)
+
+@router.post("/admin/workflow/offline/{workflow_id}")
+def admin_workflow_offline(workflow_id: int, db: Session = Depends(get_db)):
+    w = db.query(Workflow).filter_by(id=workflow_id).first()
+    if not w:
+        raise HTTPException(status_code=404, detail="未找到")
+    w.status = 0
+    db.commit()
+    return RedirectResponse(url="/admin/workflow", status_code=302)

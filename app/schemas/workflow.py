@@ -13,6 +13,7 @@ class MyTableBase(BaseModel):
     flowType: Optional[str] = "local"
     input_schema: Optional[str] = None  # 新增字段
     output_schema: Optional[str] = None  # 新增字段
+    status: Optional[int] = 1  # 1上线 0下线
 
 class MyTableCreate(MyTableBase):
     pass

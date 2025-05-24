@@ -282,7 +282,7 @@ def upload_and_forward_image(file: UploadFile = File(...)):
         try:
             file_bytes = file.file.read()
             q = Auth(QINIU_ACCESS_KEY, QINIU_SECRET_KEY)
-            key = f"{uuid.uuid4().hex}_{file.filename}"
+            key = f"input/{uuid.uuid4().hex}_{file.filename}"
             token = q.upload_token(QINIU_BUCKET_NAME, key, 3600)
             ret, info = put_data(token, key, file_bytes)
             if info.status_code == 200:

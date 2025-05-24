@@ -51,6 +51,12 @@
             <a href="/admin/workflow/detail/{{ w.id }}" class="button">详情</a>
             <a href="/admin/workflow/edit/{{ w.id }}" class="button">编辑</a>
             <a href="/admin/workflow/delete/{{ w.id }}" class="button delete">删除</a>
+            {% if w.status == 0 %}
+                <a href="#" onclick="event.preventDefault(); fetch('/admin/workflow/online/{{ w.id }}', {method: 'POST'}).then(()=>location.reload());" class="button" style="background:#43c97f;">上线</a>
+            {% endif %}
+            {% if w.status == 1 %}
+                <a href="#" onclick="event.preventDefault(); fetch('/admin/workflow/offline/{{ w.id }}', {method: 'POST'}).then(()=>location.reload());" class="button" style="background:#aaa;">下线</a>
+            {% endif %}
         </td>
     </tr>
     {% endfor %}
