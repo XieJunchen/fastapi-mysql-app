@@ -102,8 +102,74 @@
         <label for="output_schema">输出参数定义(output_schema)：</label>
         <textarea name="output_schema" placeholder='{"outputs": [{"name": "result", "type": "str", "path": "1.outputs.result"}]}' style="min-height:60px;">{{ w.output_schema if w and w.output_schema is not none else '' }}</textarea>
     </div>
+    <div class="row">
+        <button type="button" onclick="showPromptParams()" style="background:#43c97f;">自动生成参数定义</button>
+        <div id="prompt-param-modal" style="display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;align-items:center;justify-content:center;">
+            <div style="background:#fff;padding:32px 40px;border-radius:10px;min-width:500px;max-width:90vw;max-height:80vh;overflow:auto;">
+                <h3>勾选用户输入参数 <span style="float:right;cursor:pointer;color:#888;" onclick="closePromptParams()">关闭</span></h3>
+                <div id="prompt-param-list"></div>
+                <div style="margin-top:16px;text-align:right;">
+                    <button type="button" onclick="applyPromptParams()" style="background:#4f8cff;">应用到表单</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <button type="submit">{{ submit_text }}</button>
     <a href="/admin/workflow">返回列表</a>
 </form>
+<script>
+function showPromptParams() {
+    var workflow = document.querySelector('textarea[name="workflow"]').value;
+    fetch('/admin/workflow/prompt_params', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'workflow=' + encodeURIComponent(workflow)
+    }).then(r=>r.json()).then(res=>{
+        if(res.params){
+            // 只做输入参数选择，类型可手动选择（IMG/STR/VIDEO），支持自定义别名（alias）
+            let params = res.params.inputs || [];
+            let html = '<div style="margin-bottom:16px;font-weight:bold;">勾选输入参数，可自定义别名(alias)和类型（IMG、STR、VIDEO）</div>';
+            html += '<table style="width:100%;font-size:15px;"><tr><th>节点</th><th>类型</th><th>参数</th><th>路径</th><th>类型</th><th>别名(alias)</th><th>选择</th></tr>';
+            for(let p of params){
+                let type = (p.type||'').toUpperCase();
+                if(['IMG','STR','VIDEO'].indexOf(type)===-1) type = 'STR';
+                html += `<tr><td>${p.node_id}</td><td>${p.node_type}</td><td>${p.param}</td><td>${p.path}</td><td>`+
+                    `<select class='input-type' data-path='${p.path}' data-name='${p.param}'>`+
+                    `<option value='IMG' ${type==='IMG'?'selected':''}>IMG</option>`+
+                    `<option value='STR' ${type==='STR'?'selected':''}>STR</option>`+
+                    `<option value='VIDEO' ${type==='VIDEO'?'selected':''}>VIDEO</option>`+
+                    `</select></td>`+
+                    `<td><input class='input-alias' data-path='${p.path}' data-name='${p.param}' style='width:90px;' placeholder='可选'></td>`+
+                    `<td><input type='checkbox' class='input-param' data-path='${p.path}' data-name='${p.param}'></td></tr>`;
+            }
+            html += '</table>';
+            document.getElementById('prompt-param-list').innerHTML = html;
+        }else{
+            document.getElementById('prompt-param-list').innerHTML = '<div style="color:red;">解析失败：'+(res.error||'未知错误')+'</div>';
+        }
+        document.getElementById('prompt-param-modal').style.display = 'flex';
+    });
+}
+function closePromptParams(){
+    document.getElementById('prompt-param-modal').style.display = 'none';
+}
+function applyPromptParams(){
+    // 只生成 input_schema，类型和别名(alias)由下拉框和输入框选择，name为参数名，alias为别名
+    let inputs = [];
+    document.querySelectorAll('.input-param:checked').forEach(cb=>{
+        let path = cb.dataset.path;
+        let name = cb.dataset.name;
+        let typeSel = document.querySelector(`select.input-type[data-path='${path}'][data-name='${name}']`);
+        let type = typeSel ? typeSel.value : 'STR';
+        let aliasInput = document.querySelector(`input.input-alias[data-path='${path}'][data-name='${name}']`);
+        let alias = aliasInput && aliasInput.value.trim() ? aliasInput.value.trim() : undefined;
+        let item = {name: name, type: type, path: path};
+        if(alias) item.alias = alias;
+        inputs.push(item);
+    });
+    document.querySelector('textarea[name="input_schema"]').value = JSON.stringify({inputs:inputs});
+    closePromptParams();
+}
+</script>
 </body>
 </html>

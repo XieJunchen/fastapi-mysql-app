@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Form, Depends, status, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models import Workflow
@@ -172,3 +172,37 @@ def admin_workflow_offline(workflow_id: int, db: Session = Depends(get_db)):
     w.status = 0
     db.commit()
     return RedirectResponse(url="/admin/workflow", status_code=302)
+
+@router.post("/admin/workflow/prompt_params")
+def get_prompt_params(workflow: str = Form(...)):
+    """解析 workflow 字段中的 prompt，仅返回输入参数树结构（不生成 outputs）"""
+    import json
+    try:
+        data = json.loads(workflow)
+        prompt = data.get("prompt", {})
+        result = []
+        for node_id, node in prompt.items():
+            node_inputs = node.get("inputs", {})
+            for k, v in node_inputs.items():
+                param_type = type(v).__name__
+                # 类型映射：只允许 IMG/STR/VIDEO
+                if param_type.lower() == 'str':
+                    mapped_type = 'STR'
+                elif param_type.lower() == 'list' and k.lower() == 'images':
+                    mapped_type = 'IMG'
+                elif param_type.lower() == 'dict' and k.lower() == 'video':
+                    mapped_type = 'VIDEO'
+                else:
+                    mapped_type = 'STR'
+                result.append({
+                    "node_id": node_id,
+                    "node_type": node.get("class_type", ""),
+                    "param": k,
+                    "value": v,
+                    "type": mapped_type,
+                    "path": f"{node_id}.inputs.{k}",
+                    "title": node.get("_meta", {}).get("title", "")
+                })
+        return JSONResponse(content={"params": {"inputs": result}})
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=400)
