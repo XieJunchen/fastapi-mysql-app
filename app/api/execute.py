@@ -60,6 +60,7 @@ def poll_and_update_execute_record(db, prompt_id):
                     data = res.get("data")
                     # 只有 outputs 存在且非空才判定为 finished
                     if data and (data.get("outputs") or data.get("outputs", None) is not None):
+                        # 直接保存完整 data 作为 result
                         update_execute_record(db, prompt_id, status="finished", result=data)
                         return
             except Exception:

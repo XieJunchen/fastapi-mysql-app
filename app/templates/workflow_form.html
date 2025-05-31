@@ -4,8 +4,16 @@
     <title>{{ form_title }}</title>
     <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; }
-    form { background: #fff; width: 900px; margin: 40px auto; padding: 24px 32px; border-radius: 8px; box-shadow: 0 2px 8px #eee; }
-    h2 { text-align: center; }
+    .form-box { background: #fff; width: 100vw; max-width: 2200px; margin: 40px auto 0; padding: 32px 48px; border-radius: 10px; box-shadow: 0 2px 8px #eee; }
+    .form-row { display: flex; align-items: flex-start; margin-bottom: 18px; max-width: 2000px; }
+    .form-label { width: 120px; color: #666; font-size: 15px; margin-right: 12px; }
+    .form-input, .form-textarea { font-size: 15px; padding: 8px 12px; border-radius: 4px; border: 1px solid #ccc; }
+    .form-textarea { min-height: 80px; font-family: monospace; width: 100%; }
+    .form-btn-bar { text-align: right; margin-top: 24px; }
+    button, .button { padding: 8px 24px; border-radius: 4px; background: #4f8cff; color: #fff; border: none; margin-left: 8px; font-size: 16px; }
+    .row-compact { display: flex; align-items: center; gap: 24px; margin-bottom: 18px; }
+    .row-compact .form-label { width: 80px; margin-right: 6px; }
+    .row-compact .form-input, .row-compact select { width: 180px; }
     .row { margin: 12px 0; font-size: 16px; }
     .row.flex { display: flex; align-items: center; }
     .row.flex .label { width: 80px; color: #888; }
@@ -43,79 +51,78 @@
 </head>
 <body>
 <form method="post" action="{{ form_action }}">
-    <h2>{{ form_title }}</h2>
-    <div class="row flex">
-        <span class="label">名称:</span>
-        <input name="name" value="{{ w.name if w else '' }}" required style="flex:1;margin-right:24px;">
-        <span class="label">类型:</span>
-        <select name="flowType" style="flex:1;">
-            <option value="local" {% if w and w.flowType=='local' %}selected{% endif %}>local</option>
-            <option value="runningHub" {% if w and w.flowType=='runningHub' %}selected{% endif %}>runningHub</option>
-        </select>
-    </div>
-    <div class="row flex">
-        <span class="label">状态:</span>
-        <select name="status" style="flex:1;">
-            <option value="1" {% if w and w.status==1 %}selected{% endif %}>上线</option>
-            <option value="0" {% if w and w.status==0 %}selected{% endif %}>下线</option>
-        </select>
-    </div>
-    <div class="row">
-        <label>简介:</label>
-        <textarea name="desc">{{ w.desc if w else '' }}</textarea>
-    </div>
-    <div class="row">主图: <input name="picture" value="{{ w.picture if w else '' }}"></div>
-    <div class="img-preview">{% if w and w.picture %}<img src="{{ w.picture }}" alt="主图">{% endif %}</div>
-    <div class="row">大图: <input name="bigPicture" value="{{ w.bigPicture if w else '' }}"></div>
-    <div class="img-preview">{% if w and w.bigPicture %}<img src="{{ w.bigPicture }}" alt="大图">{% endif %}</div>
-    <div class="row">
-        <label>图片组:</label>
-        <div id="pics-list" style="display:flex;flex-direction:column;gap:10px;">
-            {% if w and w.pictures %}
-                {% for p in w.pictures %}
-                <div class="img-row" style="display:flex;align-items:center;gap:12px;background:#f8fafd;padding:8px 12px;border-radius:6px;">
-                    <img src="{{ p }}" alt="图片组" style="width:70px;height:70px;object-fit:contain;border-radius:6px;border:1px solid #eee;background:#fff;">
-                    <input name="pictures" value="{{ p }}" style="flex:1;padding:8px 10px;font-size:15px;border-radius:4px;border:1px solid #ccc;" placeholder="图片地址">
-                    <button type="button" onclick="this.parentNode.remove()" class="del-btn">删除</button>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="img-row" style="display:flex;align-items:center;gap:12px;background:#f8fafd;padding:8px 12px;border-radius:6px;">
-                    <img src="" alt="图片组" style="width:70px;height:70px;object-fit:contain;border-radius:6px;border:1px solid #eee;background:#fff;">
-                    <input name="pictures" style="flex:1;padding:8px 10px;font-size:15px;border-radius:4px;border:1px solid #ccc;" placeholder="图片地址">
-                    <button type="button" onclick="this.parentNode.remove()" class="del-btn">删除</button>
-                </div>
-            {% endif %}
+    <div class="form-box">
+        <h2>{{ form_title }}</h2>
+        <div class="row-compact">
+            <label class="form-label">名称:</label>
+            <input class="form-input" type="text" name="name" value="{{ w.name if w else '' }}" required>
+            <label class="form-label">类型:</label>
+            <input class="form-input" type="text" name="flowType" value="{{ w.flowType if w else '' }}" required>
+            <label class="form-label">状态:</label>
+            <select name="status" class="form-input">
+                <option value="1" {% if w and w.status==1 %}selected{% endif %}>上线</option>
+                <option value="0" {% if w and w.status==0 %}selected{% endif %}>下线</option>
+            </select>
         </div>
-        <button type="button" class="add-btn" onclick="addPicInput()">添加图片</button>
-    </div>
-    <div class="row">
-        <label>工作流 JSON:</label>
-        <textarea name="workflow" style="font-family:monospace;min-height:180px;">{{ w.workflow if w else '' }}</textarea>
-        <div style="font-size:12px;color:#888;">请填写符合 comfyUI/runningHub 的 JSON 工作流定义</div>
-    </div>
-    <div class="row">
-        <label for="input_schema">输入参数定义(input_schema)：</label>
-        <textarea name="input_schema" placeholder='{"inputs": [{"name": "image", "type": "str", "path": "1.inputs.image"}]}' style="min-height:60px;">{{ w.input_schema if w and w.input_schema is not none else '' }}</textarea>
-    </div>
-    <div class="row">
-        <label for="output_schema">输出参数定义(output_schema)：</label>
-        <textarea name="output_schema" placeholder='{"outputs": [{"name": "result", "type": "str", "path": "1.outputs.result"}]}' style="min-height:60px;">{{ w.output_schema if w and w.output_schema is not none else '' }}</textarea>
-    </div>
-    <div class="row">
-        <button type="button" onclick="showPromptParams()" style="background:#43c97f;">自动生成参数定义</button>
-        <div id="prompt-param-modal" style="display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;align-items:center;justify-content:center;">
-            <div style="background:#fff;padding:32px 40px;border-radius:10px;min-width:500px;max-width:90vw;max-height:80vh;overflow:auto;">
-                <h3>勾选用户输入参数 <span style="float:right;cursor:pointer;color:#888;" onclick="closePromptParams()">关闭</span></h3>
-                <div id="prompt-param-list"></div>
-                <div style="margin-top:16px;text-align:right;">
-                    <button type="button" onclick="applyPromptParams()" style="background:#4f8cff;">应用到表单</button>
+        <div class="form-row">
+            <label class="form-label">简介:</label>
+            <textarea name="desc" class="form-textarea">{{ w.desc if w else '' }}</textarea>
+        </div>
+        <div class="form-row">主图: <input name="picture" value="{{ w.picture if w else '' }}" class="form-input"></div>
+        <div class="img-preview">{% if w and w.picture %}<img src="{{ w.picture }}" alt="主图">{% endif %}</div>
+        <div class="form-row">大图: <input name="bigPicture" value="{{ w.bigPicture if w else '' }}" class="form-input"></div>
+        <div class="img-preview">{% if w and w.bigPicture %}<img src="{{ w.bigPicture }}" alt="大图">{% endif %}</div>
+        <div class="form-row">
+            <label class="form-label">图片组:</label>
+            <div id="pics-list" style="display:flex;flex-direction:column;gap:10px;">
+                {% if w and w.pictures %}
+                    {% for p in w.pictures %}
+                    <div class="img-row" style="display:flex;align-items:center;gap:12px;background:#f8fafd;padding:8px 12px;border-radius:6px;">
+                        <img src="{{ p }}" alt="图片组" style="width:70px;height:70px;object-fit:contain;border-radius:6px;border:1px solid #eee;background:#fff;">
+                        <input name="pictures" value="{{ p }}" style="flex:1;padding:8px 10px;font-size:15px;border-radius:4px;border:1px solid #ccc;" placeholder="图片地址">
+                        <button type="button" onclick="this.parentNode.remove()" class="del-btn">删除</button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="img-row" style="display:flex;align-items:center;gap:12px;background:#f8fafd;padding:8px 12px;border-radius:6px;">
+                        <img src="" alt="图片组" style="width:70px;height:70px;object-fit:contain;border-radius:6px;border:1px solid #eee;background:#fff;">
+                        <input name="pictures" style="flex:1;padding:8px 10px;font-size:15px;border-radius:4px;border:1px solid #ccc;" placeholder="图片地址">
+                        <button type="button" onclick="this.parentNode.remove()" class="del-btn">删除</button>
+                    </div>
+                {% endif %}
+            </div>
+            <button type="button" class="add-btn" onclick="addPicInput()">添加图片</button>
+        </div>
+        <div class="form-row">
+            <label class="form-label">工作流 JSON:</label>
+            <textarea name="workflow" class="form-textarea" style="font-family:monospace;">{{ w.workflow if w else '' }}</textarea>
+            <div style="font-size:12px;color:#888;">请填写符合 comfyUI/runningHub 的 JSON 工作流定义</div>
+        </div>
+        <div class="form-row">
+            <label for="input_schema" class="form-label">输入参数定义(input_schema)：</label>
+            <textarea name="input_schema" placeholder='{"inputs": [{"name": "image", "type": "str", "path": "1.inputs.image"}]}' class="form-textarea">{{ w.input_schema if w and w.input_schema is not none else '' }}</textarea>
+        </div>
+        <div class="form-row">
+            <label for="output_schema" class="form-label">输出参数定义(output_schema)：</label>
+            <textarea name="output_schema" placeholder='{"outputs": [{"name": "result", "type": "str", "path": "1.outputs.result"}]}' class="form-textarea">{{ w.output_schema if w and w.output_schema is not none else '' }}</textarea>
+        </div>
+        <div class="form-row">
+            <button type="button" onclick="showPromptParams()" style="background:#43c97f;">自动生成参数定义</button>
+            <div id="prompt-param-modal" style="display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;align-items:center;justify-content:center;">
+                <div style="background:#fff;padding:32px 40px;border-radius:10px;min-width:500px;max-width:90vw;max-height:80vh;overflow:auto;">
+                    <h3>勾选用户输入参数 <span style="float:right;cursor:pointer;color:#888;" onclick="closePromptParams()">关闭</span></h3>
+                    <div id="prompt-param-list"></div>
+                    <div style="margin-top:16px;text-align:right;">
+                        <button type="button" onclick="applyPromptParams()" style="background:#4f8cff;">应用到表单</button>
+                    </div>
                 </div>
             </div>
         </div>
+        <div class="form-btn-bar">
+            <button type="submit">{{ submit_text }}</button>
+            <a href="/admin/workflow">返回列表</a>
+        </div>
     </div>
-    <button type="submit">{{ submit_text }}</button>
-    <a href="/admin/workflow">返回列表</a>
 </form>
 <script>
 function showPromptParams() {
