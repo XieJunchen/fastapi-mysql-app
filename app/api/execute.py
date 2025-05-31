@@ -8,6 +8,9 @@ import os
 from fastapi.responses import FileResponse, StreamingResponse
 import uuid
 import shutil
+from app.crud import create_execute_record, update_execute_record, get_execute_record
+import threading
+import time
 
 try:
     from qiniu import Auth, put_data
@@ -47,12 +50,33 @@ COMFYUI_API_VIEW = f"{COMFYUI_BASE_URL}/api/view"
 COMFYUI_API_UPLOAD_IMAGE = f"{COMFYUI_BASE_URL}/api/upload/image"
 COMFYUI_API_HISTORY_SINGLE = f"{COMFYUI_BASE_URL}/history/{{prompt_id}}"
 
+def poll_and_update_execute_record(db, prompt_id):
+    def poll():
+        for _ in range(60):
+            try:
+                r = requests.get(f"http://127.0.0.1:8000/workflow/history/{prompt_id}", timeout=10)
+                if r.status_code == 200:
+                    res = r.json()
+                    data = res.get("data")
+                    # 只有 outputs 存在且非空才判定为 finished
+                    if data and (data.get("outputs") or data.get("outputs", None) is not None):
+                        update_execute_record(db, prompt_id, status="finished", result=data)
+                        return
+            except Exception:
+                pass
+            time.sleep(5)
+        update_execute_record(db, prompt_id, status="failed")
+    threading.Thread(target=poll, daemon=True).start()
+
 @router.post("/workflow/execute/{workflow_id}")
 def execute_workflow(
     workflow_id: int,
     db: Session = Depends(get_db),
     params: dict = Body(default={})
 ):
+    user_id = None
+    if isinstance(params, dict):
+        user_id = params.get("userId") or params.get("user_id")
     print(f"========>params: {params}")
     workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id).first()
     if not workflow_db:
@@ -120,7 +144,13 @@ def execute_workflow(
             )
             resp.raise_for_status()
             data = resp.json()
-            return {"msg": "调用comfyUI本地API成功", "data": data, "type": workflow_db.flowType}
+            # 获取 prompt_id
+            prompt_id = data.get("prompt_id") or data.get("promptId")
+            # 创建执行记录，初始为 pending
+            if prompt_id:
+                create_execute_record(db, workflow_id, prompt_id, status="pending", user_id=user_id)
+                poll_and_update_execute_record(db, prompt_id)
+            return {"msg": "调用comfyUI本地API成功", "data": data, "type": workflow_db.flowType, "prompt_id": prompt_id}
         except Exception as e:
             return {"msg": "调用comfyUI本地API异常", "error": str(e), "type": workflow_db.flowType}
     elif workflow_db.flowType == "runningHub":
@@ -160,14 +190,29 @@ def execute_workflow(
         raise HTTPException(status_code=400, detail="未知的workflow类型")
 
 @router.get("/workflow/history/{prompt_id}")
-def get_comfyui_history(prompt_id: str):
-    """查询 comfyUI 任务历史和输出结果"""
+def get_comfyui_history(
+    prompt_id: str, 
+    db: Session = Depends(get_db),
+    params: dict = Body(default={})
+):
+    """查询 comfyUI 任务历史和输出结果，优先查本地执行记录表，并自动更新执行记录"""
+    user_id = params.get("userId") if isinstance(params, dict) else None
+    record = get_execute_record(db, prompt_id)
+    if record and record.status == "finished" and record.result:
+        return {"msg": "本地缓存命中", "data": record.result, "prompt_id": prompt_id}
+    # 否则走原有逻辑
     try:
         resp = requests.get(COMFYUI_API_HISTORY_SINGLE.format(prompt_id=prompt_id), timeout=15)
         resp.raise_for_status()
         data = resp.json()
+        # 自动更新本地执行记录表
+        if data:
+            # 判断是否有 outputs 或其它关键字段
+            status = "finished" if data.get("outputs") else "failed"
+            update_execute_record(db, prompt_id, status=status, result=data)
         return {"msg": "查询comfyUI任务历史成功", "data": data, "prompt_id": prompt_id}
     except Exception as e:
+        update_execute_record(db, prompt_id, status="failed")
         return {"msg": "查询comfyUI任务历史异常", "error": str(e), "prompt_id": prompt_id}
 
 @router.get("/workflow/view")
@@ -195,7 +240,7 @@ def get_comfyui_intermediate(prompt_id: str):
 
 @router.get("/workflow/final/{prompt_id}")
 def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Depends(get_db)):
-    """查询 comfyUI 任务最终结果（如有），根据 output_schema 路径解析输出。支持 workflow_id 显式传参。返回结构始终为 {outputs: {...}}"""
+    """查询 comfyUI 任务最终结果（如有），根据 output_schema 路径解析输出。支持 workflow_id 显式传参。返回结构始终为 {outputs: {...}}，并自动更新本地执行记录表"""
     try:
         resp = requests.get(COMFYUI_API_HISTORY, timeout=15)
         resp.raise_for_status()
@@ -266,8 +311,12 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
                     result = {"list_image_url": image_urls}
             else:
                 result = {"image_url": None}
+        # 自动更新本地执行记录表
+        status = "finished" if outputs else "failed"
+        update_execute_record(db, prompt_id, status=status, result={"outputs": result})
         return {"msg": "解析成功", "outputs": result, "prompt_id": prompt_id}
     except Exception as e:
+        update_execute_record(db, prompt_id, status="failed")
         return {"msg": "查询comfyUI最终结果异常", "error": str(e), "prompt_id": prompt_id}
 
 

@@ -18,3 +18,5 @@ def get_db():
         yield db
     finally:
         db.close()
+
+from app.db.database import DATABASE_URL as SQLALCHEMY_DATABASE_URL

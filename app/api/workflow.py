@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas import MyTableOut, MyTableCreate
-from app.crud import get_workflow_list, add_workflow, clear_workflow
+from app.crud.workflow import get_workflow_list, add_workflow, clear_workflow, set_workflow_status
 from app.models import Workflow
 
 router = APIRouter()
@@ -29,18 +29,14 @@ def get_workflow_detail(workflow_id: int, db: Session = Depends(get_db)):
 
 @router.post("/workflow/online/{workflow_id}")
 def online_workflow(workflow_id: int, db: Session = Depends(get_db)):
-    obj = db.query(Workflow).filter_by(id=workflow_id).first()
+    obj = set_workflow_status(db, workflow_id, 1)
     if not obj:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    obj.status = 1
-    db.commit()
     return {"msg": "已上线", "id": workflow_id}
 
 @router.post("/workflow/offline/{workflow_id}")
 def offline_workflow(workflow_id: int, db: Session = Depends(get_db)):
-    obj = db.query(Workflow).filter_by(id=workflow_id).first()
+    obj = set_workflow_status(db, workflow_id, 0)
     if not obj:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    obj.status = 0
-    db.commit()
     return {"msg": "已下线", "id": workflow_id}

@@ -5,6 +5,9 @@
     <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; }
     h2 { color: #333; }
+    .stat-box { background: #fff; width: 90%; margin: 32px auto 0; padding: 24px 32px; border-radius: 8px; box-shadow: 0 2px 8px #eee; display: flex; gap: 48px; }
+    .stat-item { font-size: 18px; color: #333; }
+    .stat-item span { font-size: 28px; color: #4f8cff; font-weight: bold; margin-left: 8px; }
     table { border-collapse: collapse; width: 90%; margin: 20px auto; background: #fff; box-shadow: 0 2px 8px #eee; }
     th, td { padding: 10px 16px; border-bottom: 1px solid #eee; text-align: left; }
     th { background: #f0f0f0; }
@@ -26,9 +29,17 @@
         content: '';
         background: #f8d7da url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="%23f8d7da"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="16" fill="%23a94442">加载失败</text></svg>') center center no-repeat;
     }
+    .record-btn-bar { width: 90%; margin: 0 auto 24px; text-align: right; }
+    .record-btn-bar a { background: #43c97f; color: #fff; font-weight: bold; }
     </style>
 </head>
 <body>
+<div class="stat-box">
+    <div class="stat-item">用户数 <span>{{ user_count or '--' }}</span></div>
+    <div class="stat-item">任务总数 <span>{{ task_count or '--' }}</span></div>
+    <div class="stat-item">进行中 <span>{{ pending_count or '--' }}</span></div>
+    <div class="stat-item">已完成 <span>{{ finished_count or '--' }}</span></div>
+</div>
 <div class="topbar">
     <h2>工作流管理</h2>
     <form method="get" style="display:flex;align-items:center;gap:12px;">
@@ -36,6 +47,9 @@
         <button type="submit" style="padding:6px 16px;border-radius:4px;background:#4f8cff;color:#fff;border:none;">搜索</button>
     </form>
     <a href="/admin/workflow/add" class="button">新增工作流</a>
+</div>
+<div class="record-btn-bar">
+    <a href="/admin/execute_record" class="button">查看执行记录</a>
 </div>
 <table>
     <tr><th>ID</th><th>名称</th><th>主图</th><th>类型</th><th>输入参数</th><th>输出参数</th><th>操作</th></tr>

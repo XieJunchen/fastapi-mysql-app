@@ -8,6 +8,9 @@ from fastapi.templating import Jinja2Templates
 import os
 import json
 from typing import List
+from app.crud.workflow import add_workflow, update_workflow, delete_workflow, set_workflow_status
+from app.crud.execute_record import get_user_count, get_task_count, get_status_count, get_execute_record_list
+from app.models.execute_record import ExecuteRecord
 
 router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), '../templates'))
@@ -24,13 +27,22 @@ def admin_workflow_list(request: Request, db: Session = Depends(get_db)):
     total = query.count()
     workflows = query.order_by(Workflow.id.desc()).offset((page-1)*size).limit(size).all()
     has_next = (page * size) < total
+    # 统计区块数据
+    user_count = get_user_count(db)
+    task_count = get_task_count(db)
+    pending_count = get_status_count(db, "pending")
+    finished_count = get_status_count(db, "finished")
     return templates.TemplateResponse("workflow_list.html", {
         "request": request,
         "workflows": workflows,
         "q": q,
         "page": page,
         "size": size,
-        "has_next": has_next
+        "has_next": has_next,
+        "user_count": user_count,
+        "task_count": task_count,
+        "pending_count": pending_count,
+        "finished_count": finished_count
     })
 
 # 新增页面
@@ -58,7 +70,7 @@ def admin_workflow_add(
     status: int = Form(1),
     db: Session = Depends(get_db)
 ):
-    obj = Workflow(
+    obj_in = MyTableCreate(
         name=name,
         flowType=flowType,
         desc=desc,
@@ -70,8 +82,7 @@ def admin_workflow_add(
         output_schema=output_schema,
         status=status
     )
-    db.add(obj)
-    db.commit()
+    add_workflow(db, obj_in)
     return RedirectResponse(url="/admin/workflow", status_code=302)
 
 # 编辑页面
@@ -113,29 +124,27 @@ def admin_workflow_edit(
     status: int = Form(1),
     db: Session = Depends(get_db)
 ):
-    w = db.query(Workflow).filter_by(id=workflow_id).first()
-    if not w:
+    update_dict = dict(
+        name=name,
+        flowType=flowType,
+        desc=desc,
+        picture=picture,
+        bigPicture=bigPicture,
+        pictures=[p.strip() for p in pictures if p.strip()],
+        workflow=workflow,
+        input_schema=input_schema,
+        output_schema=output_schema,
+        status=status
+    )
+    obj = update_workflow(db, workflow_id, update_dict)
+    if not obj:
         raise HTTPException(status_code=404, detail="未找到")
-    w.name = name
-    w.flowType = flowType
-    w.desc = desc
-    w.picture = picture
-    w.bigPicture = bigPicture
-    w.pictures = [p.strip() for p in pictures if p.strip()]
-    w.workflow = workflow
-    w.input_schema = input_schema
-    w.output_schema = output_schema
-    w.status = status
-    db.commit()
     return RedirectResponse(url="/admin/workflow", status_code=302)
 
 # 删除
 @router.get("/admin/workflow/delete/{workflow_id}")
 def admin_workflow_delete(workflow_id: int, db: Session = Depends(get_db)):
-    w = db.query(Workflow).filter_by(id=workflow_id).first()
-    if w:
-        db.delete(w)
-        db.commit()
+    obj = delete_workflow(db, workflow_id)
     return RedirectResponse(url="/admin/workflow", status_code=302)
 
 # 详情
@@ -157,20 +166,16 @@ def admin_workflow_detail(workflow_id: int, request: Request, db: Session = Depe
 
 @router.post("/admin/workflow/online/{workflow_id}")
 def admin_workflow_online(workflow_id: int, db: Session = Depends(get_db)):
-    w = db.query(Workflow).filter_by(id=workflow_id).first()
-    if not w:
+    obj = set_workflow_status(db, workflow_id, 1)
+    if not obj:
         raise HTTPException(status_code=404, detail="未找到")
-    w.status = 1
-    db.commit()
     return RedirectResponse(url="/admin/workflow", status_code=302)
 
 @router.post("/admin/workflow/offline/{workflow_id}")
 def admin_workflow_offline(workflow_id: int, db: Session = Depends(get_db)):
-    w = db.query(Workflow).filter_by(id=workflow_id).first()
-    if not w:
+    obj = set_workflow_status(db, workflow_id, 0)
+    if not obj:
         raise HTTPException(status_code=404, detail="未找到")
-    w.status = 0
-    db.commit()
     return RedirectResponse(url="/admin/workflow", status_code=302)
 
 @router.post("/admin/workflow/prompt_params")
@@ -206,3 +211,28 @@ def get_prompt_params(workflow: str = Form(...)):
         return JSONResponse(content={"params": {"inputs": result}})
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=400)
+
+# 执行记录统计和列表
+@router.get("/admin/execute_record", response_class=HTMLResponse)
+def admin_execute_record_list(request: Request, db: Session = Depends(get_db), page: int = 1, size: int = 20, user_id: str = None, workflow_id: int = None, status: str = None):
+    user_count = get_user_count(db)
+    task_count = get_task_count(db)
+    pending_count = get_status_count(db, "pending")
+    finished_count = get_status_count(db, "finished")
+    records = get_execute_record_list(db, skip=(page-1)*size, limit=size, user_id=user_id, workflow_id=workflow_id, status=status)
+    total = get_task_count(db)  # 可根据筛选条件优化
+    has_next = (page * size) < total
+    return templates.TemplateResponse("execute_record_list.html", {
+        "request": request,
+        "records": records,
+        "user_count": user_count,
+        "task_count": task_count,
+        "pending_count": pending_count,
+        "finished_count": finished_count,
+        "page": page,
+        "size": size,
+        "has_next": has_next,
+        "user_id": user_id,
+        "workflow_id": workflow_id,
+        "status": status
+    })
