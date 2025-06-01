@@ -2,85 +2,128 @@
 <html>
 <head>
     <title>执行记录统计与列表</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; }
-        .stat-box { background: #fff; width: 100vw; max-width: 2400px; margin: 40px auto 0; padding: 24px 32px; border-radius: 8px; box-shadow: 0 2px 8px #eee; display: flex; gap: 32px; }
+        html, body { height: 100%; margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; height: 100vh; }
+        .layout-root { display: flex; flex-direction: row; height: 100vh; min-height: 100vh; }
+        .sidebar { width: 220px; min-width: 160px; background: #232d3c; color: #fff; display: flex; flex-direction: column; padding: 0; }
+        .sidebar h2 { font-size: 22px; font-weight: bold; margin: 32px 0 24px 0; text-align: center; letter-spacing: 2px; }
+        .sidebar nav { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 0 0 24px 0; }
+        .sidebar a { color: #bfc9d1; text-decoration: none; padding: 12px 32px; display: block; border-left: 4px solid transparent; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+        .sidebar a.active, .sidebar a:hover { background: #1a2230; color: #4f8cff; border-left: 4px solid #4f8cff; }
+        .main-section { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .navbar { height: 56px; background: #fff; box-shadow: 0 2px 8px #eee; display: flex; align-items: center; padding: 0 32px; z-index: 10; }
+        .navbar-title { font-size: 20px; font-weight: bold; color: #232d3c; letter-spacing: 1px; }
+        .navbar-user { margin-left: auto; color: #888; font-size: 15px; }
+        .content-area { flex: 1; overflow-y: auto; padding: 32px 32px 24px 32px; min-width: 0; }
+        .stat-box { background: #fff; width: 100%; max-width: 2400px; margin: 0 auto 0; padding: 24px 32px; border-radius: 8px; box-shadow: 0 2px 8px #eee; display: flex; gap: 32px; }
         .stat-item { font-size: 18px; color: #333; }
         .stat-item span { font-size: 28px; color: #4f8cff; font-weight: bold; margin-left: 8px; }
-        table { border-collapse: collapse; width: 100vw; max-width: 2400px; margin: 24px auto; background: #fff; box-shadow: 0 2px 8px #eee; }
+        table { border-collapse: collapse; width: 100%; max-width: 2400px; margin: 24px auto; background: #fff; box-shadow: 0 2px 8px #eee; }
         th, td { padding: 10px 16px; border-bottom: 1px solid #eee; text-align: left; }
         th { background: #f0f0f0; }
         tr:hover { background: #f9f9f9; }
-        .filter-bar { width: 100vw; max-width: 2400px; margin: 16px auto 0; display: flex; gap: 12px; align-items: center; }
+        .filter-bar { width: 100%; max-width: 2400px; margin: 16px auto 0; display: flex; gap: 12px; align-items: center; }
         .filter-bar input, .filter-bar select { padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc; }
         .filter-bar button { padding: 6px 16px; border-radius: 4px; background: #4f8cff; color: #fff; border: none; }
         .result-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.45); z-index: 9999; align-items: center; justify-content: center; }
         .result-modal > div { background: #fff; max-width: 900px; width: 90vw; max-height: 80vh; overflow: auto; padding: 24px 32px; border-radius: 8px; position: relative; }
         .result-modal h3 { margin-top: 0; }
         .result-modal pre { white-space: pre-wrap; word-break: break-all; font-size: 14px; max-height: 65vh; overflow: auto; background: #f8f8f8; padding: 8px 12px; border-radius: 4px; }
+        @media (max-width: 900px) {
+            .sidebar { width: 56px; min-width: 48px; }
+            .sidebar h2 { display: none; }
+            .sidebar a { padding: 12px 8px; font-size: 0; }
+            .sidebar a:before { content: attr(data-icon); font-size: 20px; display: inline-block; }
+        }
+        @media (max-width: 600px) {
+            .navbar { padding: 0 12px; }
+            .content-area { padding: 12px 4px 8px 4px; }
+            .stat-box { padding: 12px 8px; gap: 12px; }
+            table { font-size: 13px; }
+        }
     </style>
 </head>
 <body>
-<div class="stat-box">
-    <div class="stat-item">用户数 <span>{{ user_count }}</span></div>
-    <div class="stat-item">任务总数 <span>{{ task_count }}</span></div>
-    <div class="stat-item">进行中 <span>{{ pending_count }}</span></div>
-    <div class="stat-item">已完成 <span>{{ finished_count }}</span></div>
-    <a href="/admin/workflow/add" class="button" style="margin-left:auto;">新增工作流</a>
+<div class="layout-root">
+    <aside class="sidebar">
+        <h2>管理后台</h2>
+        <nav>
+            <a href="/admin/execute_record" class="active">执行记录</a>
+            <a href="/admin/workflow">工作流管理</a>
+            <a href="/admin/user">用户管理</a>
+            <a href="http://127.0.0.1:8001/docs" target="_blank">API文档</a>
+        </nav>
+    </aside>
+    <div class="main-section">
+        <div class="navbar">
+            <span class="navbar-title">执行记录统计与列表</span>
+            <span class="navbar-user">管理员</span>
+        </div>
+        <div class="content-area">
+            <div class="stat-box">
+                <div class="stat-item">用户数 <span>{{ user_count }}</span></div>
+                <div class="stat-item">任务总数 <span>{{ task_count }}</span></div>
+                <div class="stat-item">进行中 <span>{{ pending_count }}</span></div>
+                <div class="stat-item">已完成 <span>{{ finished_count }}</span></div>
+            </div>
+            <div class="filter-bar">
+                <form method="get" style="display:flex;gap:12px;align-items:center;" onsubmit="return clearEmptyIntFields(this)">
+                    <input type="text" name="user_id" value="{{ user_id or '' }}" placeholder="用户ID" style="width:120px;">
+                    <input type="text" name="workflow_id" value="{{ workflow_id if workflow_id is not none else '' }}" placeholder="工作流ID" style="width:120px;">
+                    <select name="status">
+                        <option value="">全部状态</option>
+                        <option value="pending" {% if status=='pending' %}selected{% endif %}>进行中</option>
+                        <option value="finished" {% if status=='finished' %}selected{% endif %}>已完成</option>
+                        <option value="failed" {% if status=='failed' %}selected{% endif %}>失败</option>
+                    </select>
+                    <button type="submit">筛选</button>
+                </form>
+            </div>
+            <table>
+                <tr>
+                    <th>ID</th><th>用户ID</th><th>工作流ID</th><th>PromptID</th><th>状态</th><th>结果</th><th>创建时间</th><th>更新时间</th>
+                </tr>
+                {% for r in records %}
+                <tr>
+                    <td>{{ r.id }}</td>
+                    <td>{{ r.user_id }}</td>
+                    <td>{{ r.workflow_id }}</td>
+                    <td>{{ r.prompt_id }}</td>
+                    <td>{{ r.status }}</td>
+                    <td style="max-width:120px;word-break:break-all;font-size:12px;white-space:pre-line;overflow:hidden;text-overflow:ellipsis;">
+                        {% if r.result %}
+                            <a href="#" onclick="showResultModal('{{ r.id }}');return false;" style="color:#4f8cff;">查看</a>
+                            <div id="result-modal-{{ r.id }}" class="result-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+                                <div style="background:#fff;max-width:900px;width:90vw;max-height:80vh;overflow:auto;padding:24px 32px;border-radius:8px;position:relative;">
+                                    <span onclick="closeResultModal('{{ r.id }}')" style="position:absolute;right:18px;top:10px;font-size:22px;cursor:pointer;">&times;</span>
+                                    <h3 style="margin-top:0;">执行结果</h3>
+                                    <pre style="white-space:pre-wrap;word-break:break-all;font-size:14px;max-height:65vh;overflow:auto;background:#f8f8f8;padding:8px 12px;border-radius:4px;">{{ r.result | tojson(indent=2) }}</pre>
+                                </div>
+                            </div>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ r.created_time }}</td>
+                    <td>{{ r.updated_time }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            <div style="width:100%;max-width:2400px;margin:16px auto 0;text-align:right;">
+                {% if page > 1 %}
+                    <a href="?page={{ page-1 }}&size={{ size }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if workflow_id %}&workflow_id={{ workflow_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}" style="margin-right:8px;">上一页</a>
+                {% endif %}
+                <span style="margin:0 8px;">第 {{ page }} 页</span>
+                {% if has_next %}
+                    <a href="?page={{ page+1 }}&size={{ size }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if workflow_id %}&workflow_id={{ workflow_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}">下一页</a>
+                {% endif %}
+            </div>
+            <a href="/admin/workflow" style="display:block;width:100%;max-width:2400px;margin:24px auto 0;text-align:center;color:#4f8cff;">返回工作流管理</a>
+        </div>
+    </div>
 </div>
-<div class="filter-bar">
-    <form method="get" style="display:flex;gap:12px;align-items:center;" onsubmit="return clearEmptyIntFields(this)">
-        <input type="text" name="user_id" value="{{ user_id or '' }}" placeholder="用户ID" style="width:120px;">
-        <input type="text" name="workflow_id" value="{{ workflow_id if workflow_id is not none else '' }}" placeholder="工作流ID" style="width:120px;">
-        <select name="status">
-            <option value="">全部状态</option>
-            <option value="pending" {% if status=='pending' %}selected{% endif %}>进行中</option>
-            <option value="finished" {% if status=='finished' %}selected{% endif %}>已完成</option>
-            <option value="failed" {% if status=='failed' %}selected{% endif %}>失败</option>
-        </select>
-        <button type="submit">筛选</button>
-    </form>
-</div>
-<table>
-    <tr>
-        <th>ID</th><th>用户ID</th><th>工作流ID</th><th>PromptID</th><th>状态</th><th>结果</th><th>创建时间</th><th>更新时间</th>
-    </tr>
-    {% for r in records %}
-    <tr>
-        <td>{{ r.id }}</td>
-        <td>{{ r.user_id }}</td>
-        <td>{{ r.workflow_id }}</td>
-        <td>{{ r.prompt_id }}</td>
-        <td>{{ r.status }}</td>
-        <td style="max-width:120px;word-break:break-all;font-size:12px;white-space:pre-line;overflow:hidden;text-overflow:ellipsis;">
-            {% if r.result %}
-                <a href="#" onclick="showResultModal('{{ r.id }}');return false;" style="color:#4f8cff;">查看</a>
-                <div id="result-modal-{{ r.id }}" class="result-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
-                    <div style="background:#fff;max-width:900px;width:90vw;max-height:80vh;overflow:auto;padding:24px 32px;border-radius:8px;position:relative;">
-                        <span onclick="closeResultModal('{{ r.id }}')" style="position:absolute;right:18px;top:10px;font-size:22px;cursor:pointer;">&times;</span>
-                        <h3 style="margin-top:0;">执行结果</h3>
-                        <pre style="white-space:pre-wrap;word-break:break-all;font-size:14px;max-height:65vh;overflow:auto;background:#f8f8f8;padding:8px 12px;border-radius:4px;">{{ r.result | tojson(indent=2) }}</pre>
-                    </div>
-                </div>
-            {% else %}
-                -
-            {% endif %}
-        </td>
-        <td>{{ r.created_time }}</td>
-        <td>{{ r.updated_time }}</td>
-    </tr>
-    {% endfor %}
-</table>
-<div style="width:100vw;max-width:2400px;margin:16px auto 0;text-align:right;">
-    {% if page > 1 %}
-        <a href="?page={{ page-1 }}&size={{ size }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if workflow_id %}&workflow_id={{ workflow_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}" style="margin-right:8px;">上一页</a>
-    {% endif %}
-    <span style="margin:0 8px;">第 {{ page }} 页</span>
-    {% if has_next %}
-        <a href="?page={{ page+1 }}&size={{ size }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if workflow_id %}&workflow_id={{ workflow_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}">下一页</a>
-    {% endif %}
-</div>
-<a href="/admin/workflow" style="display:block;width:100vw;max-width:2400px;margin:24px auto 0;text-align:center;color:#4f8cff;">返回工作流管理</a>
 <script>
 function showResultModal(id) {
     document.getElementById('result-modal-' + id).style.display = 'flex';

@@ -76,8 +76,19 @@ def execute_workflow(
     params: dict = Body(default={})
 ):
     user_id = None
-    if isinstance(params, dict):
-        user_id = params.get("userId") or params.get("user_id")
+    source = params.get("source") or None
+    external_user_id = params.get("external_user_id") or None
+    userId = params.get("userId") or None
+    if userId or (source and external_user_id):
+        from app.crud.user import get_user_by_external, create_user
+        from app.schemas.user import UserCreate
+        db_user = get_user_by_external(db, source, external_user_id)
+        if not db_user:
+            return {"msg": "执行失败，用户未授权", "error": "用户未登录"}
+        user_id = db_user.userId
+    else:
+        # 如果没有 userId 或 source/external_user_id，则使用默认用户
+        return {"msg": "执行失败，未找到默认用户", "error": "请先创建默认用户"}
     print(f"========>params: {params}")
     workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id).first()
     if not workflow_db:

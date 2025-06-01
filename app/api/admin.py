@@ -11,6 +11,12 @@ from typing import List
 from app.crud.workflow import add_workflow, update_workflow, delete_workflow, set_workflow_status
 from app.crud.execute_record import get_user_count, get_task_count, get_status_count, get_execute_record_list
 from app.models.execute_record import ExecuteRecord
+from app.models.user import User
+from app.crud.user import get_users
+from sqlalchemy import or_
+from fastapi import Form
+from decimal import Decimal
+from app.crud.user import get_user_by_external
 
 router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), '../templates'))
@@ -236,3 +242,41 @@ def admin_execute_record_list(request: Request, db: Session = Depends(get_db), p
         "workflow_id": workflow_id,
         "status": status
     })
+
+@router.get("/admin/user", response_class=HTMLResponse)
+def admin_user_list(request: Request, db: Session = Depends(get_db)):
+    q = request.query_params.get('q', '').strip()
+    page = int(request.query_params.get('page', 1))
+    size = int(request.query_params.get('size', 20))
+    query = db.query(User)
+    if q:
+        query = query.filter(
+            or_(
+                User.nickname.contains(q),
+                User.source.contains(q),
+                User.external_user_id.contains(q),
+                User.userId.contains(q)
+            )
+        )
+    total = query.count()
+    users = query.order_by(User.id.desc()).offset((page-1)*size).limit(size).all()
+    has_next = (page * size) < total
+    return templates.TemplateResponse("user_list.html", {
+        "request": request,
+        "users": users,
+        "q": q,
+        "page": page,
+        "size": size,
+        "has_next": has_next
+    })
+
+@router.post("/admin/user/deduct/{user_id}")
+def admin_user_deduct(user_id: int, amount: float = Form(...), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if amount <= 0 or user.balance < Decimal(str(amount)):
+        return RedirectResponse(url="/admin/user", status_code=302)
+    user.balance = user.balance - Decimal(str(amount))
+    db.commit()
+    return RedirectResponse(url="/admin/user", status_code=302)

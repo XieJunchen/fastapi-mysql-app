@@ -1,18 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 import httpx
 import json
 import os
 
 from app.db.database import get_db
-from app.schemas import UserOut
-from app.crud import get_users
+from app.schemas.user import UserOut, UserCreate
+from app.crud.user import get_users, get_user_by_external, create_user
 
 router = APIRouter()
 
 @router.get("/users", response_model=list[UserOut])
 def read_users_api(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
     return get_users(db, skip=skip, limit=limit)
+
+@router.post("/users", response_model=UserOut)
+def create_user_api(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = get_user_by_external(db, user.source, user.external_user_id)
+    if db_user:
+        return db_user
+    db_user = create_user(db, user)
+    if not db_user:
+        raise HTTPException(status_code=400, detail="用户创建失败或已存在")
+    return db_user
 
 def get_douyin_config():
     config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'config.json')
@@ -71,8 +81,24 @@ def get_douyin_miniapp_access_token():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+### 异步创建用户
+def async_create_user(source: str, openid: str):
+    from app.db.database import SessionLocal
+    print(f"异步创建用户: source={source}, openid={openid}")
+    db_async = SessionLocal()
+    try:
+        user_in = UserCreate(
+            source=source,
+            external_user_id=openid,
+            nickname=openid
+        )
+        create_user(db_async, user_in)
+    finally:
+        db_async.close()
+
+### 获取抖音用户信息
 @router.get("/douyin/jscode2session")
-def douyin_jscode2session(code: str = Query(..., description="前端获取的 code")):
+def douyin_jscode2session(code: str = Query(..., description="前端获取的 code"), db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
     douyin_cfg = get_douyin_config()
     appid = douyin_cfg.get('AppID')
     secret = douyin_cfg.get('AppSecret')
@@ -89,6 +115,13 @@ def douyin_jscode2session(code: str = Query(..., description="前端获取的 co
         response = httpx.post(url, json=params, headers=headers)
         response.raise_for_status()
         data = response.json()
+        openid = data.get("data").get("openid") if "data" in data else None
+        if not openid:
+            return data
+        user = get_user_by_external(db, source="douyin", external_user_id=openid)
+        if not user:
+            if background_tasks is not None:
+                background_tasks.add_task(async_create_user, source="douyin", openid=openid)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

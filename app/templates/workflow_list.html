@@ -2,87 +2,138 @@
 <html>
 <head>
     <title>工作流管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; }
-    h2 { color: #333; }
-    .stat-box { background: #fff; width: 100vw; max-width: 2600px; margin: 32px auto 0; padding: 24px 32px; border-radius: 8px; box-shadow: 0 2px 8px #eee; display: flex; gap: 48px; }
-    .stat-item { font-size: 18px; color: #333; }
-    .stat-item span { font-size: 28px; color: #4f8cff; font-weight: bold; margin-left: 8px; }
-    table { border-collapse: collapse; width: 100vw; max-width: 2600px; margin: 20px auto; background: #fff; box-shadow: 0 2px 8px #eee; }
-    th, td { padding: 10px 16px; border-bottom: 1px solid #eee; text-align: left; }
-    th { background: #f0f0f0; }
-    tr:hover { background: #f9f9f9; }
-    .topbar { width: 100vw; max-width: 2600px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
-    .filter-bar { width: 100vw; max-width: 2600px; margin: 16px auto 0; display: flex; gap: 12px; align-items: center; }
-    .filter-bar input, .filter-bar select { padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc; }
-    .filter-bar button { padding: 6px 16px; border-radius: 4px; background: #4f8cff; color: #fff; border: none; }
-    .record-btn-bar { width: 100vw; max-width: 2600px; margin: 0 auto 16px auto; text-align: right; }
-    .button { padding: 6px 16px; border-radius: 4px; background: #4f8cff; color: #fff; border: none; margin-left: 8px; text-decoration: none; display: inline-block; }
-    .button.delete { background: #ff4d4f; }
-    .thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
-    .img-preview img, .pics-list img, .main-img, .big-img, .thumb {
-        width: 80px;
-        height: 80px;
-        object-fit: contain;
-        border-radius: 6px;
-        border: 1px solid #eee;
-        background: #fff;
-        display: inline-block;
-    }
-    .img-preview img[onerror], .pics-list img[onerror], .main-img[onerror], .big-img[onerror], .thumb[onerror] {
-        content: '';
-        background: #f8d7da url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="%23f8d7da"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="16" fill="%23a94442">加载失败</text></svg>') center center no-repeat;
-    }
+        html, body { height: 100%; margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; height: 100vh; }
+        .layout-root { display: flex; flex-direction: row; height: 100vh; min-height: 100vh; }
+        .sidebar { width: 220px; min-width: 160px; background: #232d3c; color: #fff; display: flex; flex-direction: column; padding: 0; }
+        .sidebar h2 { font-size: 22px; font-weight: bold; margin: 32px 0 24px 0; text-align: center; letter-spacing: 2px; }
+        .sidebar nav { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 0 0 24px 0; }
+        .sidebar a { color: #bfc9d1; text-decoration: none; padding: 12px 32px; display: block; border-left: 4px solid transparent; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+        .sidebar a.active, .sidebar a:hover { background: #1a2230; color: #4f8cff; border-left: 4px solid #4f8cff; }
+        .main-section { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .navbar { height: 56px; background: #fff; box-shadow: 0 2px 8px #eee; display: flex; align-items: center; padding: 0 32px; z-index: 10; }
+        .navbar-title { font-size: 20px; font-weight: bold; color: #232d3c; letter-spacing: 1px; }
+        .navbar-user { margin-left: auto; color: #888; font-size: 15px; }
+        .content-area { flex: 1; overflow-x: auto; overflow-y: auto; padding: 32px 32px 24px 32px; min-width: 0; box-sizing: border-box; width: 100%; max-width: 100vw; }
+        @media (max-width: 900px) {
+            .sidebar { width: 56px; min-width: 48px; }
+            .sidebar h2 { display: none; }
+            .sidebar a { padding: 12px 8px; font-size: 0; }
+            .sidebar a:before { content: attr(data-icon); font-size: 20px; display: inline-block; }
+        }
+        @media (max-width: 600px) {
+            .navbar { padding: 0 12px; }
+            .content-area { padding: 12px 4px 8px 4px; }
+        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; }
+        h2 { color: #333; }
+        .stat-box { background: #fff; width: 100vw; max-width: 2600px; margin: 32px auto 0; padding: 24px 32px; border-radius: 8px; box-shadow: 0 2px 8px #eee; display: flex; gap: 48px; }
+        .stat-item { font-size: 18px; color: #333; }
+        .stat-item span { font-size: 28px; color: #4f8cff; font-weight: bold; margin-left: 8px; }
+        table { border-collapse: collapse; width: 100vw; max-width: 2600px; margin: 20px auto; background: #fff; box-shadow: 0 2px 8px #eee; }
+        th, td { padding: 10px 16px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f0f0f0; }
+        tr:hover { background: #f9f9f9; }
+        .topbar { width: 100vw; max-width: 2600px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+        .filter-bar { width: 100vw; max-width: 2600px; margin: 16px auto 0; display: flex; gap: 12px; align-items: center; }
+        .filter-bar input, .filter-bar select { padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc; }
+        .filter-bar button { padding: 6px 16px; border-radius: 4px; background: #4f8cff; color: #fff; border: none; }
+        .record-btn-bar { width: 100vw; max-width: 2600px; margin: 0 auto 16px auto; text-align: right; }
+        .button { padding: 6px 16px; border-radius: 4px; background: #4f8cff; color: #fff; border: none; margin-left: 8px; text-decoration: none; display: inline-block; }
+        .button.delete { background: #ff4d4f; }
+        .thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
+        .img-preview img, .pics-list img, .main-img, .big-img, .thumb {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            background: #fff;
+            display: inline-block;
+        }
+        .img-preview img[onerror], .pics-list img[onerror], .main-img[onerror], .big-img[onerror], .thumb[onerror] {
+            content: '';
+            background: #f8d7da url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="%23f8d7da"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="16" fill="%23a94442">加载失败</text></svg>') center center no-repeat;
+        }
+        .detail-card, .form-card { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px #eee; width: 100%; max-width: 100%; margin: 40px auto; padding: 32px 40px; box-sizing: border-box; }
+        .detail-table, .form-table { width: 100%; table-layout: fixed; word-break: break-all; }
     </style>
 </head>
 <body>
-<div class="stat-box">
-    <div class="stat-item">用户数 <span>{{ user_count or '--' }}</span></div>
-    <div class="stat-item">任务总数 <span>{{ task_count or '--' }}</span></div>
-    <div class="stat-item">进行中 <span>{{ pending_count or '--' }}</span></div>
-    <div class="stat-item">已完成 <span>{{ finished_count or '--' }}</span></div>
-</div>
-<div class="topbar">
-    <h2>工作流管理</h2>
-    <form method="get" style="display:flex;align-items:center;gap:12px;">
-        <input type="text" name="q" value="{{ q or '' }}" placeholder="名称/类型关键词" style="padding:6px 12px;width:180px;border-radius:4px;border:1px solid #ccc;">
-        <button type="submit" style="padding:6px 16px;border-radius:4px;background:#4f8cff;color:#fff;border:none;">搜索</button>
-    </form>
-    <a href="/admin/workflow/add" class="button">新增工作流</a>
-    <a href="/admin/execute_record" class="button">查看执行记录</a>
-</div>
-<table>
-    <tr><th>ID</th><th>名称</th><th>主图</th><th>类型</th><th>输入参数</th><th>输出参数</th><th>操作</th></tr>
-    {% for w in workflows %}
-    <tr>
-        <td>{{ w.id }}</td>
-        <td>{{ w.name }}</td>
-        <td><img class="thumb" src="{{ w.picture }}" alt="主图"></td>
-        <td>{{ w.flowType }}</td>
-        <td style="max-width:200px;word-break:break-all;font-size:12px;">{{ w.input_schema }}</td>
-        <td style="max-width:200px;word-break:break-all;font-size:12px;">{{ w.output_schema }}</td>
-        <td>
-            <a href="/admin/workflow/detail/{{ w.id }}" class="button">详情</a>
-            <a href="/admin/workflow/edit/{{ w.id }}" class="button">编辑</a>
-            <a href="/admin/workflow/delete/{{ w.id }}" class="button delete">删除</a>
-            {% if w.status == 0 %}
-                <a href="#" onclick="event.preventDefault(); fetch('/admin/workflow/online/{{ w.id }}', {method: 'POST'}).then(()=>location.reload());" class="button" style="background:#43c97f;">上线</a>
-            {% endif %}
-            {% if w.status == 1 %}
-                <a href="#" onclick="event.preventDefault(); fetch('/admin/workflow/offline/{{ w.id }}', {method: 'POST'}).then(()=>location.reload());" class="button" style="background:#aaa;">下线</a>
-            {% endif %}
-        </td>
-    </tr>
-    {% endfor %}
-</table>
-<div style="width:90%;margin:16px auto 0;text-align:right;">
-    {% if page > 1 %}
-        <a href="?q={{ q }}&page={{ page-1 }}&size={{ size }}" class="button">上一页</a>
-    {% endif %}
-    <span style="margin:0 8px;">第 {{ page }} 页</span>
-    {% if has_next %}
-        <a href="?q={{ q }}&page={{ page+1 }}&size={{ size }}" class="button">下一页</a>
-    {% endif %}
+<div class="layout-root">
+    <aside class="sidebar">
+        <h2>管理后台</h2>
+        <nav>
+            <a href="/admin/execute_record" {% if request.url.path.startswith('/admin/execute_record') %}class="active"{% endif %}>执行记录</a>
+            <a href="/admin/workflow" {% if request.url.path.startswith('/admin/workflow') %}class="active"{% endif %}>工作流管理</a>
+            <a href="/admin/user" {% if request.url.path.startswith('/admin/user') %}class="active"{% endif %}>用户管理</a>
+            <a href="http://127.0.0.1:8001/docs" target="_blank">API文档</a>
+        </nav>
+    </aside>
+    <div class="main-section">
+        <div class="navbar">
+            <span class="navbar-title">{% block navbar_title %}工作流管理{% endblock %}</span>
+            <span class="navbar-user">管理员</span>
+        </div>
+        <div class="content-area" style="width:100%;max-width:100vw;box-sizing:border-box;">
+            {% block content %}
+            <div class="detail-card" style="overflow-x:auto;">
+                <div class="stat-box" style="min-width:600px;display:flex;flex-wrap:wrap;gap:48px;">
+                    <div class="stat-item">用户数 <span>{{ user_count or '--' }}</span></div>
+                    <div class="stat-item">任务总数 <span>{{ task_count or '--' }}</span></div>
+                    <div class="stat-item">进行中 <span>{{ pending_count or '--' }}</span></div>
+                    <div class="stat-item">已完成 <span>{{ finished_count or '--' }}</span></div>
+                </div>
+                <div class="topbar">
+                    <h2>工作流管理</h2>
+                    <form method="get" style="display:flex;align-items:center;gap:12px;">
+                        <input type="text" name="q" value="{{ q or '' }}" placeholder="名称/类型关键词" style="padding:6px 12px;width:180px;border-radius:4px;border:1px solid #ccc;">
+                        <button type="submit" style="padding:6px 16px;border-radius:4px;background:#4f8cff;color:#fff;border:none;">搜索</button>
+                    </form>
+                    <a href="/admin/workflow/add" class="button">新增工作流</a>
+                    <a href="/admin/execute_record" class="button">查看执行记录</a>
+                </div>
+                <div style="overflow-x:auto;">
+                <table style="border-collapse: collapse; width: 100%; min-width:900px; background: #fff; box-shadow: 0 2px 8px #eee;">
+                    <tr><th>ID</th><th>名称</th><th>主图</th><th>类型</th><th>输入参数</th><th>输出参数</th><th>操作</th></tr>
+                    {% for w in workflows %}
+                    <tr>
+                        <td>{{ w.id }}</td>
+                        <td>{{ w.name }}</td>
+                        <td><img class="thumb" src="{{ w.picture }}" alt="主图"></td>
+                        <td>{{ w.flowType }}</td>
+                        <td style="max-width:200px;word-break:break-all;font-size:12px;">{{ w.input_schema }}</td>
+                        <td style="max-width:200px;word-break:break-all;font-size:12px;">{{ w.output_schema }}</td>
+                        <td>
+                            <a href="/admin/workflow/detail/{{ w.id }}" class="button">详情</a>
+                            <a href="/admin/workflow/edit/{{ w.id }}" class="button">编辑</a>
+                            <a href="/admin/workflow/delete/{{ w.id }}" class="button delete">删除</a>
+                            {% if w.status == 0 %}
+                                <a href="#" onclick="event.preventDefault(); fetch('/admin/workflow/online/{{ w.id }}', {method: 'POST'}).then(()=>location.reload());" class="button" style="background:#43c97f;">上线</a>
+                            {% endif %}
+                            {% if w.status == 1 %}
+                                <a href="#" onclick="event.preventDefault(); fetch('/admin/workflow/offline/{{ w.id }}', {method: 'POST'}).then(()=>location.reload());" class="button" style="background:#aaa;">下线</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                </div>
+                <div style="width:100%;margin:16px auto 0;text-align:right;">
+                    {% if page > 1 %}
+                        <a href="?q={{ q }}&page={{ page-1 }}&size={{ size }}" class="button">上一页</a>
+                    {% endif %}
+                    <span style="margin:0 8px;">第 {{ page }} 页</span>
+                    {% if has_next %}
+                        <a href="?q={{ q }}&page={{ page+1 }}&size={{ size }}" class="button">下一页</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endblock %}
+        </div>
+    </div>
 </div>
 </body>
 </html>
