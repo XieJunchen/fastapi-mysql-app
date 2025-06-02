@@ -7,6 +7,11 @@ import os
 from app.db.database import get_db
 from app.schemas.user import UserOut, UserCreate
 from app.crud.user import get_users, get_user_by_external, create_user
+from app.schemas.execute_record import ExecuteRecordOut
+from app.crud.execute_record import get_execute_record_list
+from app.models.user import User
+from decimal import Decimal
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -131,3 +136,60 @@ def douyin_login(
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/user/execute_records", response_model=list[ExecuteRecordOut])
+def get_user_execute_records(
+    userId: str = Query(None, description="用户ID"),
+    source: str = Query(None, description="账户来源"),
+    external_user_id: str = Query(None, description="外部用户id"),
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db)
+):
+    user = None
+    if userId:
+        user = db.query(User).filter(User.userId == userId).first()
+    elif source and external_user_id:
+        user = get_user_by_external(db, source, external_user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    query = db.query(get_execute_record_list.__globals__['ExecuteRecord']).filter(get_execute_record_list.__globals__['ExecuteRecord'].user_id == user.userId)
+    total = query.count()
+    records = query.order_by(get_execute_record_list.__globals__['ExecuteRecord'].id.desc()).offset(skip).limit(limit).all()
+    result = []
+    for r in records:
+        consume_amount = None
+        if r.result and isinstance(r.result, dict):
+            consume_amount = r.result.get('consume_amount', 0.0)
+        result.append({
+            "id": r.id,
+            "user_id": r.user_id,
+            "created_time": r.created_time.strftime('%Y-%m-%d %H:%M:%S') if r.created_time else None,
+            "execute_timeout": r.execute_timeout,
+            "result": r.result,
+            "status": r.status,
+            "consume_amount": consume_amount
+        })
+    return JSONResponse(content={"total": total, "items": result})
+
+@router.get("/user/profile")
+def get_user_profile(
+    userId: str = Query(None, description="用户ID"),
+    source: str = Query(None, description="账户来源"),
+    external_user_id: str = Query(None, description="外部用户id"),
+    db: Session = Depends(get_db)
+):
+    user = None
+    if userId:
+        user = db.query(User).filter(User.userId == userId).first()
+    elif source and external_user_id:
+        user = get_user_by_external(db, source, external_user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    avatar = getattr(user, 'avatar', '')
+    return {
+        "userId": user.userId,
+        "nickname": user.nickname,
+        "photo": 'http://swqqsa5wv.hb-bkt.clouddn.com/admin/comfyui_85cc31c28dc44507b48405613872bf6c.png',
+        "avatar": avatar
+    }

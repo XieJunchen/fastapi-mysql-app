@@ -22,6 +22,10 @@ def update_execute_record(db: Session, prompt_id: str, status: str, result=None,
     record = db.query(ExecuteRecord).filter(ExecuteRecord.prompt_id == prompt_id).first()
     print(f"Updating record for prompt_id: {prompt_id}, status: {status}, result: {result}, messages: {messages}")
     if record:
+        # 如果已是 finished 状态，不允许再更新为 failed 或其它状态
+        if record.status == "finished":
+            print(f"Record {prompt_id} is already finished, skip update.")
+            return record
         record.status = status
         record.result = result
         record.execute_timeout = calculate_timeout(messages) if messages else None
