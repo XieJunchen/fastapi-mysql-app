@@ -59,9 +59,11 @@ def poll_and_update_execute_record(db, prompt_id):
                     res = r.json()
                     data = res.get("data")
                     # 只有 outputs 存在且非空才判定为 finished
+                    print(f"Polling data for prompt_id {prompt_id}: {data}")
+                    messages = data.get('status', {}).get('messages', [])
                     if data and (data.get("outputs") or data.get("outputs", None) is not None):
                         # 直接保存完整 data 作为 result
-                        update_execute_record(db, prompt_id, status="finished", result=data)
+                        update_execute_record(db, prompt_id, status="finished", result=data, messages=messages)
                         return
             except Exception:
                 pass
@@ -221,7 +223,8 @@ def get_comfyui_history(
         if data:
             # 判断是否有 outputs 或其它关键字段
             status = "finished" if data.get("outputs") else "failed"
-            update_execute_record(db, prompt_id, status=status, result=data)
+            messages = data.get('status', {}).get('messages', [])
+            update_execute_record(db, prompt_id, status=status, result=data, messages=messages)
         return {"msg": "查询comfyUI任务历史成功", "data": data, "prompt_id": prompt_id}
     except Exception as e:
         update_execute_record(db, prompt_id, status="failed")
@@ -259,6 +262,7 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
         data = resp.json()
         resp_data = data.get(prompt_id, {})
         outputs = resp_data.get('outputs', {})
+        messages = resp_data.get('status', {}).get('messages', [])
         # 优先用 workflow_id 参数，否则用 resp_data['workflow_id']
         workflow_id_val = workflow_id if workflow_id is not None else resp_data.get('workflow_id')
         workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id_val).first() if workflow_id_val else None
@@ -325,7 +329,7 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
                 result = {"image_url": None}
         # 自动更新本地执行记录表
         status = "finished" if outputs else "failed"
-        update_execute_record(db, prompt_id, status=status, result={"outputs": result})
+        update_execute_record(db, prompt_id, status=status, result={"outputs": result}, messages=messages)
         return {"msg": "解析成功", "outputs": result, "prompt_id": prompt_id}
     except Exception as e:
         update_execute_record(db, prompt_id, status="failed")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks
 from sqlalchemy.orm import Session
 import httpx
 import json
@@ -97,12 +97,18 @@ def async_create_user(source: str, openid: str):
         db_async.close()
 
 ### 获取抖音用户信息
-@router.get("/douyin/jscode2session")
-def douyin_jscode2session(code: str = Query(..., description="前端获取的 code"), db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
+@router.post("/douyin/login")
+def douyin_login(
+    db: Session = Depends(get_db), 
+    background_tasks: BackgroundTasks = None, 
+    params: dict = Body(default={})
+):
     douyin_cfg = get_douyin_config()
     appid = douyin_cfg.get('AppID')
     secret = douyin_cfg.get('AppSecret')
     url = douyin_cfg.get('jscode2session_url')
+    print(f"Douyin login params: {params}")
+    code = params.get("code")
     if not appid or not secret:
         raise HTTPException(status_code=500, detail="Douyin AppID 或 AppSecret 未配置")
     params = {

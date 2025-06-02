@@ -13,3 +13,4 @@ class ExecuteRecord(Base):
     created_time = Column(DateTime, default=datetime.datetime.utcnow)
     updated_time = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     user_id = Column(String(64), index=True, nullable=True)  # 新增字段，记录执行人
+    execute_timeout = Column(Integer, nullable=True)  # 执行耗时, 单位为秒

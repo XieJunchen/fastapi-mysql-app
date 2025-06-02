@@ -83,7 +83,7 @@
             </div>
             <table>
                 <tr>
-                    <th>ID</th><th>用户ID</th><th>工作流ID</th><th>PromptID</th><th>状态</th><th>结果</th><th>创建时间</th><th>更新时间</th>
+                    <th>ID</th><th>用户ID</th><th>工作流ID</th><th>PromptID</th><th>状态</th><th>耗时</th><th>结果</th><th>创建时间</th><th>更新时间</th>
                 </tr>
                 {% for r in records %}
                 <tr>
@@ -92,6 +92,7 @@
                     <td>{{ r.workflow_id }}</td>
                     <td>{{ r.prompt_id }}</td>
                     <td>{{ r.status }}</td>
+                    <td>{{ r.execute_timeout }}s</td>
                     <td style="max-width:120px;word-break:break-all;font-size:12px;white-space:pre-line;overflow:hidden;text-overflow:ellipsis;">
                         {% if r.result %}
                             <a href="#" onclick="showResultModal('{{ r.id }}');return false;" style="color:#4f8cff;">查看</a>
