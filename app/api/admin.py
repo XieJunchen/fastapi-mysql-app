@@ -74,6 +74,7 @@ def admin_workflow_add(
     input_schema: str = Form(None),
     output_schema: str = Form(None),
     status: int = Form(1),
+    result_type: str = Form("image"),
     db: Session = Depends(get_db)
 ):
     obj_in = MyTableCreate(
@@ -86,7 +87,8 @@ def admin_workflow_add(
         workflow=workflow,
         input_schema=input_schema,
         output_schema=output_schema,
-        status=status
+        status=status,
+        result_type=result_type
     )
     add_workflow(db, obj_in)
     return RedirectResponse(url="/admin/workflow", status_code=302)
@@ -128,6 +130,7 @@ def admin_workflow_edit(
     input_schema: str = Form(None),
     output_schema: str = Form(None),
     status: int = Form(1),
+    result_type: str = Form("image"),
     db: Session = Depends(get_db)
 ):
     update_dict = dict(
@@ -140,7 +143,8 @@ def admin_workflow_edit(
         workflow=workflow,
         input_schema=input_schema,
         output_schema=output_schema,
-        status=status
+        status=status,
+        result_type=result_type
     )
     obj = update_workflow(db, workflow_id, update_dict)
     if not obj:

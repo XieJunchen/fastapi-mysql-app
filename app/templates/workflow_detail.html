@@ -84,6 +84,7 @@
                     <tr><th>名称</th><td>{{ w.name }}</td></tr>
                     <tr><th>描述</th><td>{{ w.desc }}</td></tr>
                     <tr><th>类型</th><td>{{ w.flowType }}</td></tr>
+                    <tr><th>结果类型</th><td>{{ w.result_type }}</td></tr>
                     <tr><th>调用次数</th><td>{{ w.useTimes }}</td></tr>
                     <tr><th>主图</th><td>{% if w.picture %}<img src="{{ w.picture }}" alt="主图" style="max-width:120px;max-height:80px;">{% else %}-{% endif %}</td></tr>
                     <tr><th>大图</th><td>{% if w.bigPicture %}<img src="{{ w.bigPicture }}" alt="大图" style="max-width:180px;max-height:120px;">{% else %}-{% endif %}</td></tr>

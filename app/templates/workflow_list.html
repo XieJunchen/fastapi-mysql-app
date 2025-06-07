@@ -97,13 +97,14 @@
                 </div>
                 <div style="overflow-x:auto;">
                 <table style="border-collapse: collapse; width: 100%; min-width:900px; background: #fff; box-shadow: 0 2px 8px #eee;">
-                    <tr><th>ID</th><th>名称</th><th>主图</th><th>类型</th><th>输入参数</th><th>输出参数</th><th>操作</th></tr>
+                    <tr><th>ID</th><th>名称</th><th>主图</th><th>类型</th><th>结果类型</th><th>输入参数</th><th>输出参数</th><th>操作</th></tr>
                     {% for w in workflows %}
                     <tr>
                         <td>{{ w.id }}</td>
                         <td>{{ w.name }}</td>
                         <td><img class="thumb" src="{{ w.picture }}" alt="主图"></td>
                         <td>{{ w.flowType }}</td>
+                        <td>{{ w.result_type or 'image' }}</td>
                         <td style="max-width:200px;word-break:break-all;font-size:12px;">{{ w.input_schema }}</td>
                         <td style="max-width:200px;word-break:break-all;font-size:12px;">{{ w.output_schema }}</td>
                         <td>

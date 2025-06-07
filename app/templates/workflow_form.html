@@ -124,6 +124,16 @@
                         <textarea name="output_schema" placeholder='{"outputs": [{"name": "result", "type": "str", "path": "1.outputs.result"}]}' class="form-textarea">{{ w.output_schema if w and w.output_schema is not none else '' }}</textarea>
                     </div>
                     <div class="form-row">
+                        <label class="form-label">结果类型(result_type):</label>
+                        <select name="result_type" class="form-input">
+                            <option value="image" {% if w and w.result_type=='image' %}selected{% endif %}>图片</option>
+                            <option value="video" {% if w and w.result_type=='video' %}selected{% endif %}>视频</option>
+                            <option value="text" {% if w and w.result_type=='text' %}selected{% endif %}>文字</option>
+                            <option value="audio" {% if w and w.result_type=='audio' %}selected{% endif %}>音频</option>
+                            <option value="other" {% if w and w.result_type=='other' %}selected{% endif %}>其他</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
                         <button type="button" onclick="showPromptParams()" style="background:#43c97f;">自动生成参数定义</button>
                         <div id="prompt-param-modal" style="display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;align-items:center;justify-content:center;">
                             <div style="background:#fff;padding:32px 40px;border-radius:10px;min-width:500px;max-width:90vw;max-height:80vh;overflow:auto;">

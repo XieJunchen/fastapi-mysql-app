@@ -89,15 +89,27 @@ def get_douyin_miniapp_access_token():
 ### 异步创建用户
 def async_create_user(source: str, openid: str):
     from app.db.database import SessionLocal
+    from app.crud.user import get_user_by_external, create_user
+    from app.schemas.user import UserCreate
+    from sqlalchemy.exc import IntegrityError
     print(f"异步创建用户: source={source}, openid={openid}")
     db_async = SessionLocal()
     try:
+        # 防重：先查是否已存在
+        exist_user = get_user_by_external(db_async, source, openid)
+        if exist_user:
+            print(f"用户已存在: source={source}, external_user_id={openid}")
+            return
         user_in = UserCreate(
             source=source,
             external_user_id=openid,
             nickname=openid
         )
-        create_user(db_async, user_in)
+        try:
+            create_user(db_async, user_in)
+        except IntegrityError:
+            db_async.rollback()
+            print(f"并发下唯一约束拦截，未重复创建: source={source}, external_user_id={openid}")
     finally:
         db_async.close()
 
@@ -190,6 +202,7 @@ def get_user_profile(
     return {
         "userId": user.userId,
         "nickname": user.nickname,
+        "balance": str(user.balance) if user.balance is not None else "0.00",
         "photo": 'http://swqqsa5wv.hb-bkt.clouddn.com/admin/comfyui_85cc31c28dc44507b48405613872bf6c.png',
         "avatar": avatar
     }

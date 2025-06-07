@@ -18,3 +18,4 @@ class Workflow(Base):
     input_schema = Column(Text, nullable=True)  # 新增字段，存储输入参数定义
     output_schema = Column(Text, nullable=True)  # 新增字段，存储输出参数定义
     status = Column(Integer, default=1, nullable=False, comment="1上线 0下线")
+    result_type = Column(String(20), default="image", comment="结果类型：image图片、video视频、text文字等")  # 新增字段
