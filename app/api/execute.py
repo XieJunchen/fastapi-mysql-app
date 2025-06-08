@@ -203,7 +203,7 @@ def execute_workflow(
     else:
         raise HTTPException(status_code=400, detail="未知的workflow类型")
 
-@router.get("/workflow/history/{prompt_id}")
+@router.post("/workflow/history/{prompt_id}")
 def get_comfyui_history(
     prompt_id: str, 
     db: Session = Depends(get_db),
@@ -219,6 +219,7 @@ def get_comfyui_history(
         resp = requests.get(COMFYUI_API_HISTORY_SINGLE.format(prompt_id=prompt_id), timeout=15)
         resp.raise_for_status()
         data = resp.json()
+        print(f"查询comfyUI任务历史数据: {data}")
         # 自动更新本地执行记录表
         if data:
             # 判断是否有 outputs 或其它关键字段
