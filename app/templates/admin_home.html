@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>后台首页 - FastAPI 管理系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(120deg, #e0e7ff 0%, #f8fafc 100%);
+            min-height: 100vh;
+        }
+        .admin-home {
+            max-width: 600px;
+            margin: 80px auto 0 auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px #0002, 0 1.5px 8px #a5b4fc44;
+            padding: 48px 36px 36px 36px;
+            text-align: center;
+        }
+        .admin-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: #3730a3;
+            letter-spacing: 1px;
+        }
+        .admin-desc {
+            color: #555;
+            margin-bottom: 36px;
+            font-size: 1.15rem;
+        }
+        .admin-links {
+            margin-bottom: 32px;
+        }
+        .admin-links a {
+            margin: 0 14px 14px 0;
+            min-width: 140px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 2px 8px #a5b4fc22;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .admin-links a:hover {
+            transform: translateY(-2px) scale(1.04);
+            box-shadow: 0 6px 18px #6366f144;
+        }
+        .admin-links i {
+            margin-right: 7px;
+            font-size: 1.2em;
+        }
+        .admin-footer {
+            color: #888;
+            font-size: 0.97rem;
+            margin-top: 18px;
+        }
+    </style>
+</head>
+<body>
+<div class="admin-home">
+    <div class="admin-title"><i class="bi bi-speedometer2"></i> FastAPI 后台管理系统</div>
+    <div class="admin-desc">欢迎使用！请选择下方功能进入管理：</div>
+    <div class="admin-links">
+        <a href="/admin/workflow" class="btn btn-primary"><i class="bi bi-diagram-3"></i> 工作流管理</a>
+        <a href="/admin/execute_record" class="btn btn-success"><i class="bi bi-list-check"></i> 执行记录</a>
+        <a href="/admin/user" class="btn btn-info"><i class="bi bi-people"></i> 用户管理</a>
+    </div>
+    <hr>
+    <div class="admin-footer">
+        <i class="bi bi-lightning-charge"></i> Powered by <b>FastAPI</b> &amp; <b>Bootstrap 5</b> &nbsp;|&nbsp; <a href="https://github.com/tiangolo/fastapi" target="_blank">GitHub</a>
+    </div>
+</div>
+</body>
+</html>
