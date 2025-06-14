@@ -19,19 +19,46 @@ def create_execute_record(db: Session, workflow_id: int, prompt_id: str, status:
     return record
 
 def update_execute_record(db: Session, prompt_id: str, status: str, result=None, messages=None):
-    record = db.query(ExecuteRecord).filter(ExecuteRecord.prompt_id == prompt_id).first()
-    print(f"Updating record for prompt_id: {prompt_id}, status: {status}, result: {result}, messages: {messages}")
-    if record:
-        # 如果已是 finished 状态，不允许再更新为 failed 或其它状态
-        if record.status == "finished":
-            print(f"Record {prompt_id} is already finished, skip update.")
-            return record
-        record.status = status
-        record.result = result
-        record.execute_timeout = calculate_timeout(messages) if messages else None
-        record.updated_time = datetime.datetime.utcnow()
+    # 只更新未 finished 的记录，防止并发覆盖
+    now = datetime.datetime.utcnow()
+    execute_timeout = calculate_timeout(messages) if messages else None
+    update_data = {
+        'status': status,
+        'result': result,
+        'execute_timeout': execute_timeout,
+        'updated_time': now
+    }
+    rows = db.query(ExecuteRecord).filter(ExecuteRecord.prompt_id == prompt_id, ExecuteRecord.status != "finished").update(update_data)
+    if rows:
         db.commit()
-        db.refresh(record)
+        record = db.query(ExecuteRecord).filter(ExecuteRecord.prompt_id == prompt_id).first()
+        print(f"[update_execute_record] prompt_id={prompt_id} 状态已更新为{status}")
+        return record
+    else:
+        record = db.query(ExecuteRecord).filter(ExecuteRecord.prompt_id == prompt_id).first()
+        print(f"[update_execute_record] prompt_id={prompt_id} 已是finished或不存在，跳过更新")
+        return record
+
+def update_execute_record_by_id(db: Session, record_id: int, update_dict: dict):
+    """
+    根据主键ID直接修改执行记录的任意字段（如状态、结果等），不限制 status 是否为 finished。
+    适合后台或管理员操作。
+    """
+    record = db.query(ExecuteRecord).filter(ExecuteRecord.id == record_id).first()
+    if not record:
+        print(f"[update_execute_record_by_id] id={record_id} 不存在，无法更新")
+        return None
+    for k, v in update_dict.items():
+        if k == 'execute_timeout' and v is not None:
+            try:
+                v = int(float(v))  # 支持小数转为整数秒
+            except Exception:
+                v = 0
+        setattr(record, k, v)
+    record.updated_time = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(record)
+    print(f"[update_execute_record_by_id] id={record_id} 字段已更新: {update_dict}")
     return record
 
 def get_execute_record(db: Session, prompt_id: str):

@@ -53,137 +53,154 @@ COMFYUI_API_VIEW = f"{COMFYUI_BASE_URL}/api/view"
 COMFYUI_API_UPLOAD_IMAGE = f"{COMFYUI_BASE_URL}/api/upload/image"
 COMFYUI_API_HISTORY_SINGLE = f"{COMFYUI_BASE_URL}/history/{{prompt_id}}"
 
+def get_user_id_from_params(db, params):
+    """从参数中获取 user_id，如果未授权或未登录返回错误信息。"""
+    source = params.get("source") or None
+    external_user_id = params.get("external_user_id") or None
+    userId = params.get("userId") or None
+    if userId or (source and external_user_id):
+        from app.crud.user import get_user_by_external
+        db_user = get_user_by_external(db, source, external_user_id)
+        if not db_user:
+            return None, {"msg": "执行失败，用户未授权", "error": "用户未登录"}
+        return db_user.userId, None
+    else:
+        return None, {"msg": "执行失败，未找到默认用户", "error": "请先创建默认用户"}
+
+def inject_input_schema_params(prompt, params, input_schema):
+    """根据 input_schema 将 params 注入到 prompt 的对应路径。"""
+    try:
+        schema = json.loads(input_schema) if isinstance(input_schema, str) else input_schema
+        for item in schema.get("inputs", []):
+            param_name = item.get("name")
+            param_path = item.get("path")
+            alias = item.get("alias")
+            param_key = alias if alias and alias in params else param_name
+            if param_key and param_path and param_key in params:
+                keys = param_path.split('.')
+                node = prompt
+                for k in keys[:-1]:
+                    node = node.get(k) if isinstance(node, dict) else None
+                    if node is None:
+                        break
+                if node is not None and isinstance(node, dict):
+                    node[keys[-1]] = params[param_key]
+    except Exception as e:
+        print(f"input_schema注入参数异常: {e}")
+    return prompt
+
+def build_comfyui_payload(flow_data, params, client_id):
+    """构建 comfyUI API 所需的 payload。"""
+    extra_data = flow_data.get("extra_data") or getattr(params, "extra_data", {})
+    prompt = flow_data.get("prompt") or getattr(params, "prompt", {})
+    return {
+        "client_id": client_id,
+        "prompt": prompt,
+        "extra_data": extra_data
+    }
+
+def build_comfyui_headers():
+    """构建 comfyUI API 所需的 headers。"""
+    return {
+        "Accept": "*/*",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Cache-Control": "max-age=0",
+        "Comfy-User": "",
+        "Origin": COMFYUI_BASE_URL,
+        "Referer": f"{COMFYUI_BASE_URL}/",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+        "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "Content-Type": "application/json"
+    }
+
+def handle_local_workflow(db, workflow_db, params, user_id):
+    """处理本地类型 workflow 的执行逻辑。"""
+    try:
+        flow_data = json.loads(workflow_db.workflow) if workflow_db.workflow else {}
+    except Exception:
+        flow_data = {}
+    client_id = getattr(params, "client_id", uuid.uuid4().hex)
+    prompt = flow_data.get("prompt") or getattr(params, "prompt", {})
+    input_schema = getattr(workflow_db, "input_schema", None)
+    if input_schema:
+        prompt = inject_input_schema_params(prompt, params, input_schema)
+    payload = build_comfyui_payload(flow_data, params, client_id)
+    headers = build_comfyui_headers()
+    if not isinstance(payload["prompt"], dict):
+        return {"error": "prompt must be a dict", "actual_type": str(type(payload["prompt"])), "prompt": payload["prompt"]}
+    try:
+        print(f"========>params: {payload}")
+        resp = requests.post(
+            COMFYUI_API_PROMPT,
+            json=payload,
+            headers=headers if headers else None,
+            timeout=300
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        prompt_id = data.get("prompt_id") or data.get("promptId")
+        if prompt_id:
+            create_execute_record(db, workflow_db.id, prompt_id, status="pending", user_id=user_id)
+        return {"msg": "调用comfyUI本地API成功", "data": data, "type": workflow_db.flowType, "prompt_id": prompt_id}
+    except Exception as e:
+        return {"msg": "调用comfyUI本地API异常", "error": str(e), "type": workflow_db.flowType}
+
+def handle_runninghub_workflow(db, workflow_db):
+    """处理 runningHub 类型 workflow 的执行逻辑。"""
+    node_info_list = []
+    if hasattr(workflow_db, "nodeInfoList") and workflow_db.nodeInfoList:
+        node_info_list = workflow_db.nodeInfoList
+    else:
+        try:
+            node_info_list = json.loads(workflow_db.workflow) if workflow_db.workflow else []
+            if not isinstance(node_info_list, list):
+                node_info_list = []
+        except Exception:
+            node_info_list = []
+    payload = {
+        "webappId": getattr(workflow_db, "webappId", workflow_db.id),
+        "apiKey": RUNNINGHUB_API_KEY,
+        "nodeInfoList": node_info_list
+    }
+    headers = {
+        "Host": "www.runninghub.cn",
+        "Content-Type": "application/json"
+    }
+    try:
+        resp = requests.post(RUNNINGHUB_API_URL, headers=headers, json=payload, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("code") == 0:
+            return {"msg": "调用runningHub API成功", "data": data.get("data"), "type": workflow_db.flowType}
+        else:
+            return {"msg": "调用runningHub API失败", "error": data.get("msg"), "type": workflow_db.flowType, "api_payload": payload}
+    except Exception as e:
+        return {"msg": "调用runningHub API异常", "error": str(e), "type": workflow_db.flowType, "api_payload": payload}
+
 @router.post("/workflow/execute/{workflow_id}")
 def execute_workflow(
     workflow_id: int,
     db: Session = Depends(get_db),
     params: dict = Body(default={})
 ):
-    # 启动全局定时任务（只启动一次）
+    """工作流执行主入口，自动分流到本地或 runningHub 逻辑。"""
     start_polling_if_needed(COMFYUI_API_HISTORY_SINGLE)
-    user_id = None
-    source = params.get("source") or None
-    external_user_id = params.get("external_user_id") or None
-    userId = params.get("userId") or None
-    if userId or (source and external_user_id):
-        from app.crud.user import get_user_by_external, create_user
-        from app.schemas.user import UserCreate
-        db_user = get_user_by_external(db, source, external_user_id)
-        if not db_user:
-            return {"msg": "执行失败，用户未授权", "error": "用户未登录"}
-        user_id = db_user.userId
-    else:
-        # 如果没有 userId 或 source/external_user_id，则使用默认用户
-        return {"msg": "执行失败，未找到默认用户", "error": "请先创建默认用户"}
+    user_id, user_error = get_user_id_from_params(db, params)
+    if user_error:
+        return user_error
     print(f"========>params: {params}")
     workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id).first()
     if not workflow_db:
         raise HTTPException(status_code=404, detail="Workflow not found")
     if workflow_db.flowType == "local":
-        try:
-            flow_data = json.loads(workflow_db.workflow) if workflow_db.workflow else {}
-        except Exception:
-            flow_data = {}
-        client_id = getattr(params, "client_id", uuid.uuid4().hex)
-        extra_data = flow_data.get("extra_data") or getattr(params, "extra_data", {})
-        prompt = flow_data.get("prompt") or getattr(params, "prompt", {})
-        # 动态参数注入：path 只允许从 input_schema 读取，不能从 params 读取 path 字段
-        input_schema = getattr(workflow_db, "input_schema", None)
-        if input_schema:
-            try:
-                schema = json.loads(input_schema) if isinstance(input_schema, str) else input_schema
-                for item in schema.get("inputs", []):
-                    param_name = item.get("name")
-                    param_path = item.get("path")  # 只从 input_schema 读取
-                    alias = item.get("alias")
-                    # 优先用 alias 匹配 params，否则用 name
-                    param_key = alias if alias and alias in params else param_name
-                    if param_key and param_path and param_key in params:
-                        keys = param_path.split('.')
-                        node = prompt
-                        for k in keys[:-1]:
-                            node = node.get(k) if isinstance(node, dict) else None
-                            if node is None:
-                                break
-                        if node is not None and isinstance(node, dict):
-                            node[keys[-1]] = params[param_key]
-            except Exception as e:
-                print(f"input_schema注入参数异常: {e}")
-        payload = {
-            "client_id": client_id,
-            "prompt": prompt,
-            "extra_data": extra_data
-        }
-        headers = {
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate, br, zstd",
-            "Accept-Language": "zh-CN,zh;q=0.9",
-            "Cache-Control": "max-age=0",
-            "Comfy-User": "",
-            "Origin": COMFYUI_BASE_URL,
-            "Referer": f"{COMFYUI_BASE_URL}/",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
-            "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "Content-Type": "application/json"
-        }
-        if not isinstance(payload["prompt"], dict):
-            return {"error": "prompt must be a dict", "actual_type": str(type(payload["prompt"])), "prompt": payload["prompt"]}
-        try:
-            print(f"========>params: {payload}")
-            resp = requests.post(
-                COMFYUI_API_PROMPT,
-                json=payload,
-                headers=headers if headers else None,
-                timeout=300
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            # 获取 prompt_id
-            prompt_id = data.get("prompt_id") or data.get("promptId")
-            # 创建执行记录，初始为 pending
-            if prompt_id:
-                create_execute_record(db, workflow_id, prompt_id, status="pending", user_id=user_id)
-                # poll_and_update_execute_record(db, prompt_id)
-            return {"msg": "调用comfyUI本地API成功", "data": data, "type": workflow_db.flowType, "prompt_id": prompt_id}
-        except Exception as e:
-            return {"msg": "调用comfyUI本地API异常", "error": str(e), "type": workflow_db.flowType}
+        return handle_local_workflow(db, workflow_db, params, user_id)
     elif workflow_db.flowType == "runningHub":
-        # 调用在线runningHub API
-        # 1. 组装 nodeInfoList（可根据实际业务扩展，这里用 workflow.workflow 字段做演示）
-        node_info_list = []
-        if hasattr(workflow_db, "nodeInfoList") and workflow_db.nodeInfoList:
-            node_info_list = workflow_db.nodeInfoList
-        else:
-            # 假设 workflow.workflow 是 json 字符串或 dict，包含节点参数
-            try:
-                node_info_list = json.loads(workflow_db.workflow) if workflow_db.workflow else []
-                if not isinstance(node_info_list, list):
-                    node_info_list = []
-            except Exception:
-                node_info_list = []
-        payload = {
-            "webappId": getattr(workflow_db, "webappId", workflow_db.id),  # 优先用 webappId 字段
-            "apiKey": RUNNINGHUB_API_KEY,
-            "nodeInfoList": node_info_list
-        }
-        headers = {
-            "Host": "www.runninghub.cn",
-            "Content-Type": "application/json"
-        }
-        try:
-            resp = requests.post(RUNNINGHUB_API_URL, headers=headers, json=payload, timeout=15)
-            resp.raise_for_status()
-            data = resp.json()
-            if data.get("code") == 0:
-                return {"msg": "调用runningHub API成功", "data": data.get("data"), "type": workflow_db.flowType}
-            else:
-                return {"msg": "调用runningHub API失败", "error": data.get("msg"), "type": workflow_db.flowType, "api_payload": payload}
-        except Exception as e:
-            return {"msg": "调用runningHub API异常", "error": str(e), "type": workflow_db.flowType, "api_payload": payload}
+        return handle_runninghub_workflow(db, workflow_db)
     else:
         raise HTTPException(status_code=400, detail="未知的workflow类型")
 
@@ -207,7 +224,7 @@ def get_comfyui_history(
         # 自动更新本地执行记录表
         if data:
             # 判断是否有 outputs 或其它关键字段
-            status = "finished" if data.get("outputs") else "failed"
+            status = "finished" if data.get("outputs") else "pending"
             messages = data.get('status', {}).get('messages', [])
             update_execute_record(db, prompt_id, status=status, result=data, messages=messages)
         return {"msg": "查询comfyUI任务历史成功", "data": data, "prompt_id": prompt_id}
@@ -238,9 +255,90 @@ def get_comfyui_intermediate(prompt_id: str):
     except Exception as e:
         return {"msg": "查询comfyUI中间结果异常", "error": str(e), "prompt_id": prompt_id}
 
+def parse_outputs_from_schema(outputs, output_schema):
+    """根据 output_schema 解析 outputs，返回图片url等结果。支持多层嵌套和常见图片/文本结构。"""
+    result = {"image_url": None}
+    image_urls = []
+    # 优先按 output_schema 路径解析
+    if output_schema and 'outputs' in output_schema:
+        for item in output_schema['outputs']:
+            path = item.get('path')
+            name = item.get('name')
+            if path and name:
+                try:
+                    node = outputs
+                    for part in path.replace(']', '').split('.'):
+                        if '[' in part:
+                            k, idx = part.split('[')
+                            node = node.get(k)
+                            if node is not None:
+                                node = node[int(idx)]
+                            else:
+                                node = None
+                                break
+                        else:
+                            node = node.get(part) if isinstance(node, dict) else None
+                        if node is None:
+                            break
+                    # 支持 node 为图片url、图片url列表、images结构、text结构
+                    if isinstance(node, str):
+                        image_urls.append(node)
+                    elif isinstance(node, list):
+                        # 可能是图片url列表或嵌套
+                        for n in node:
+                            if isinstance(n, str):
+                                image_urls.append(n)
+                            elif isinstance(n, list):
+                                image_urls.extend([x for x in n if isinstance(x, str)])
+                            elif isinstance(n, dict) and 'filename' in n:
+                                image_urls.append(f"{COMFYUI_API_VIEW}?filename={n['filename']}")
+                    elif isinstance(node, dict):
+                        if 'filename' in node:
+                            image_urls.append(f"{COMFYUI_API_VIEW}?filename={node['filename']}")
+                except Exception:
+                    pass
+    # 如果 output_schema 没有命中，或未配置，兼容原图片逻辑和 text 逻辑
+    if not image_urls:
+        if isinstance(outputs, dict):
+            for v in outputs.values():
+                # 兼容 images 字段
+                images = v.get('images') if isinstance(v, dict) else None
+                if images and isinstance(images, list):
+                    for img in images:
+                        if 'filename' in img:
+                            image_urls.append(f"{COMFYUI_API_VIEW}?filename={img['filename']}")
+                # 兼容 text 字段（如为图片url字符串或列表）
+                text = v.get('text') if isinstance(v, dict) else None
+                if text:
+                    if isinstance(text, str):
+                        image_urls.append(text)
+                    elif isinstance(text, list):
+                        # 递归展开所有层级的字符串
+                        def extract_strs(lst):
+                            for t in lst:
+                                if isinstance(t, str):
+                                    image_urls.append(t)
+                                elif isinstance(t, list):
+                                    extract_strs(t)
+                        extract_strs(text)
+    if image_urls:
+        if len(image_urls) == 1:
+            result = {"image_url": image_urls[0]}
+        else:
+            result = {"list_image_url": image_urls}
+    else:
+        result = {"image_url": None}
+    return result
+
 @router.get("/workflow/final/{prompt_id}")
 def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Depends(get_db)):
-    """查询 comfyUI 任务最终结果（如有），根据 output_schema 路径解析输出。支持 workflow_id 显式传参。返回结构始终为 {outputs: {...}}，并自动更新本地执行记录表"""
+    """查询 comfyUI 任务最终结果，优先查本地执行记录表，未命中再查 comfyUI 并自动更新本地。返回结构始终为 {outputs: {...}}"""
+    # 1. 优先查本地执行记录表
+    record = get_execute_record(db, prompt_id)
+    if record and record.status == "finished" and record.result:
+        outputs = record.result.get("outputs") if isinstance(record.result, dict) else None
+        return {"msg": "本地缓存命中", "outputs": outputs, "prompt_id": prompt_id}
+    # 2. 本地未命中，查 comfyUI
     try:
         resp = requests.get(COMFYUI_API_HISTORY, timeout=15)
         resp.raise_for_status()
@@ -248,7 +346,6 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
         resp_data = data.get(prompt_id, {})
         outputs = resp_data.get('outputs', {})
         messages = resp_data.get('status', {}).get('messages', [])
-        # 优先用 workflow_id 参数，否则用 resp_data['workflow_id']
         workflow_id_val = workflow_id if workflow_id is not None else resp_data.get('workflow_id')
         workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id_val).first() if workflow_id_val else None
         output_schema = None
@@ -257,61 +354,8 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
                 output_schema = json.loads(workflow_db.output_schema) if isinstance(workflow_db.output_schema, str) else workflow_db.output_schema
             except Exception:
                 output_schema = None
-        result = {"image_url": None}
-        # 有 output_schema 时，按 path 解析
-        if output_schema and 'outputs' in output_schema:
-            image_urls = []
-            for item in output_schema['outputs']:
-                path = item.get('path')
-                name = item.get('name')
-                if path and name:
-                    try:
-                        node = outputs
-                        for part in path.replace(']', '').split('.'):
-                            if '[' in part:
-                                k, idx = part.split('[')
-                                node = node.get(k)
-                                if node is not None:
-                                    node = node[int(idx)]
-                                else:
-                                    node = None
-                                    break
-                            else:
-                                node = node.get(part) if isinstance(node, dict) else None
-                            if node is None:
-                                break
-                        # 收集所有图片地址
-                        if isinstance(node, str):
-                            image_urls.append(node)
-                        elif isinstance(node, list):
-                            # 支持 node 为图片地址列表
-                            image_urls.extend([n for n in node if isinstance(n, str)])
-                    except Exception as e:
-                        pass
-            if image_urls:
-                if len(image_urls) == 1:
-                    result = {"image_url": image_urls[0]}
-                else:
-                    result = {"list_image_url": image_urls}
-            else:
-                result = {"image_url": None}
-        else:
-            # 没有 output_schema 时，兼容原图片逻辑，只保留 image_url/list_image_url
-            image_urls = []
-            if isinstance(outputs, dict):
-                for v in outputs.values():
-                    images = v.get('images') if isinstance(v, dict) else None
-                    if images and isinstance(images, list):
-                        for img in images:
-                            if 'filename' in img:
-                                image_urls.append(f"{COMFYUI_API_VIEW}?filename={img['filename']}")
-            if image_urls:
-                if len(image_urls) == 1:
-                    result = {"image_url": image_urls[0]}
-                else:
-                    result = {"list_image_url": image_urls}
-            else:
-                result = {"image_url": None}
+        # 拆分：输出解析单独函数
+        result = parse_outputs_from_schema(outputs, output_schema)
         # 自动更新本地执行记录表
         status = "finished" if outputs else "failed"
         update_execute_record(db, prompt_id, status=status, result={"outputs": result}, messages=messages)

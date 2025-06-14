@@ -109,9 +109,32 @@
                     </td>
                     <td>{{ r.created_time }}</td>
                     <td>{{ r.updated_time }}</td>
+                    <td>
+                        <button onclick="openEditModal('{{ r.id }}', '{{ r.status }}', '{{ r.execute_timeout }}', this.getAttribute('data-result'))" data-result='{{ r.result | tojson | replace("'", "&#39;") | safe }}'>编辑</button>
+                    </td>
                 </tr>
                 {% endfor %}
             </table>
+            <!-- 编辑弹窗 -->
+            <div id="edit-modal" class="result-modal" style="display:none;">
+              <div style="background:#fff;max-width:600px;width:90vw;padding:24px 32px;border-radius:8px;position:relative;">
+                <span onclick="closeEditModal()" style="position:absolute;right:18px;top:10px;font-size:22px;cursor:pointer;">&times;</span>
+                <h3>编辑执行记录</h3>
+                <form id="edit-form" onsubmit="return submitEditForm();">
+                  <input type="hidden" id="edit-id">
+                  <label>状态: <select id="edit-status">
+                    <option value="pending">进行中</option>
+                    <option value="finished">已完成</option>
+                    <option value="failed">失败</option>
+                  </select></label><br>
+                  <label>耗时(s): <input id="edit-timeout" type="number"></label><br>
+                  <label>结果(JSON):<br>
+                    <textarea id="edit-result" style="width:100%;height:80px;"></textarea>
+                  </label><br>
+                  <button type="submit">保存</button>
+                </form>
+              </div>
+            </div>
             <div style="width:100%;max-width:2400px;margin:16px auto 0;text-align:right;">
                 {% if page > 1 %}
                     <a href="?page={{ page-1 }}&size={{ size }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if workflow_id %}&workflow_id={{ workflow_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}" style="margin-right:8px;">上一页</a>
@@ -139,6 +162,39 @@ function clearEmptyIntFields(form) {
         wf.removeAttribute('name');
     }
     return true;
+}
+function openEditModal(id, status, timeout, result) {
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-status').value = status;
+  document.getElementById('edit-timeout').value = timeout;
+  document.getElementById('edit-result').value = JSON.stringify(result, null, 2);
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+async function submitEditForm() {
+  const id = document.getElementById('edit-id').value;
+  const status = document.getElementById('edit-status').value;
+  const execute_timeout = document.getElementById('edit-timeout').value;
+  let result;
+  try {
+    result = JSON.parse(document.getElementById('edit-result').value);
+  } catch(e) {
+    alert('结果字段不是合法JSON');
+    return false;
+  }
+  const resp = await fetch('/admin/execute_record/update', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id, status, execute_timeout, result})
+  });
+  if (resp.ok) {
+    location.reload();
+  } else {
+    alert('更新失败');
+  }
+  return false;
 }
 </script>
 </body>
