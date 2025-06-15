@@ -295,7 +295,7 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
         # 拆分：输出解析单独函数
         result = parse_outputs_from_schema(outputs, output_schema)
         # 自动更新本地执行记录表
-        if outputs:
+        if result:
             ## print(f"========>更新执行记录 {prompt_id}，状态: finished", f"结果: {result}, messages: {messages}")
             update_execute_record(db, prompt_id, status='finished', result={"outputs": result}, messages=messages)
             return {"msg": "解析成功", "outputs": result, "prompt_id": prompt_id}
