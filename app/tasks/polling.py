@@ -1,5 +1,6 @@
 import threading
 import time
+import json
 import requests
 from sqlalchemy import desc
 from app.db.database import SessionLocal
@@ -37,29 +38,25 @@ def sync_prompts_to_db(db, prompt_items):
             if rec and rec.status != "finished":
                 # 新增：查 workflow_id，查 workflow，取 output_schema，标准化 outputs
                 workflow_id = rec.workflow_id
-                workflow_db = db.query(Workflow).filter_by(id=workflow_id).first() if workflow_id else None
+                workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id).first() if workflow_id else None
                 output_schema = None
                 if workflow_db and getattr(workflow_db, 'output_schema', None):
                     try:
-                        import json
                         output_schema = json.loads(workflow_db.output_schema) if isinstance(workflow_db.output_schema, str) else workflow_db.output_schema
                     except Exception:
                         output_schema = None
                 # 导入 parse_outputs_from_schema
                 from app.api.execute import parse_outputs_from_schema
                 std_outputs = parse_outputs_from_schema(outputs, output_schema)
-                # 存储标准化 outputs 到 result["outputs"]
-                result_data = dict(item)
-                result_data["outputs"] = std_outputs
-                update_list.append((pid, result_data, messages))
+                update_list.append((pid, std_outputs, messages))
     # 批量更新
-    for pid, result_data, messages in update_list:
-        update_execute_record(db, pid, status="finished", result=result_data, messages=messages)
+    for pid, std_outputs, messages in update_list:
+        update_execute_record(db, pid, status="finished", result={"outputs": std_outputs}, messages=messages)
     if update_list:
         db.commit()
-        logging.info(f"[定时任务] 本次批量同步 {len(update_list)} 条prompt记录")
+        logging.info(f"[定时任务] 本次批量同步 {len(update_list)} 条prompt记录, update_list:{update_list}")
 
-def poll_latest_prompt_result(COMFYUI_API_HISTORY_SINGLE):
+def poll_latest_prompt_result():
     empty_count = 0  # 连续无待处理记录的计数
     max_empty_count = 10  # 阈值，连续10次无记录则自动退出
     from app.api.execute import COMFYUI_API_HISTORY  # 避免循环引用
@@ -77,18 +74,19 @@ def poll_latest_prompt_result(COMFYUI_API_HISTORY_SINGLE):
                 if empty_count >= max_empty_count:
                     logging.info(f'[定时任务] 连续{max_empty_count}次无待处理记录，自动退出轮询线程')
                     break
-            # 每次轮询间隔时间递增，避免频繁请求
-            time.sleep(2 * empty_count + 1)  
+            # 指数级延迟，避免空转浪费资源
+            delay = min(2 ** empty_count, 300)  # 最大延迟限制为5分钟
+            time.sleep(delay)
     finally:
         db.close()
         logging.info('[定时任务] 数据库连接已关闭')
 
-def start_polling_if_needed(COMFYUI_API_HISTORY_SINGLE):
+def start_polling_if_needed():
     global polling_thread
     with polling_thread_lock:
         if polling_thread is None or not polling_thread.is_alive():
             logging.info('[定时任务] 线程未启动，准备启动...')
-            polling_thread = threading.Thread(target=poll_latest_prompt_result, args=(COMFYUI_API_HISTORY_SINGLE,), daemon=True)
+            polling_thread = threading.Thread(target=poll_latest_prompt_result, daemon=True)
             polling_thread.start()
             logging.info('[定时任务] 线程已启动')
         else:

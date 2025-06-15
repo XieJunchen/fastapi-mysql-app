@@ -124,7 +124,7 @@ def handle_local_workflow(db, workflow_db, params, user_id):
     if not isinstance(payload["prompt"], dict):
         return {"error": "prompt must be a dict", "actual_type": str(type(payload["prompt"])), "prompt": payload["prompt"]}
     try:
-        print(f"========>url:{COMFYUI_API_PROMPT} , params: {payload}")
+        ## print(f"========>url:{COMFYUI_API_PROMPT} , params: {payload}")
         resp = requests.post(
             COMFYUI_API_PROMPT,
             json=payload,
@@ -179,11 +179,11 @@ def execute_workflow(
     params: dict = Body(default={})
 ):
     """工作流执行主入口，自动分流到本地或 runningHub 逻辑。"""
-    start_polling_if_needed(COMFYUI_API_HISTORY_SINGLE)
+    start_polling_if_needed()
     user_id, user_error = get_user_id_from_params(db, params)
     if user_error:
         return user_error
-    print(f"========>params: {params}")
+    ## print(f"========>params: {params}")
     workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id).first()
     if not workflow_db:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -296,6 +296,7 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
         result = parse_outputs_from_schema(outputs, output_schema)
         # 自动更新本地执行记录表
         if outputs:
+            ## print(f"========>更新执行记录 {prompt_id}，状态: finished", f"结果: {result}, messages: {messages}")
             update_execute_record(db, prompt_id, status='finished', result={"outputs": result}, messages=messages)
             return {"msg": "解析成功", "outputs": result, "prompt_id": prompt_id}
         else:
