@@ -75,5 +75,23 @@
         <i class="bi bi-lightning-charge"></i> Powered by <b>FastAPI</b> &amp; <b>Bootstrap 5</b> &nbsp;|&nbsp; <a href="https://github.com/tiangolo/fastapi" target="_blank">GitHub</a>
     </div>
 </div>
+<script>
+    document.getElementById('init-db-btn').onclick = function() {
+        if (!confirm('确定要初始化数据库吗？此操作不可逆！')) return;
+        fetch('/admin/init_db', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                let el = document.getElementById('init-db-result');
+                if(data.success) {
+                    el.innerHTML = '<div class="alert alert-success">' + data.msg + '</div>';
+                } else {
+                    el.innerHTML = '<div class="alert alert-danger">' + data.msg + '</div>';
+                }
+            })
+            .catch(e => {
+                document.getElementById('init-db-result').innerHTML = '<div class="alert alert-danger">请求失败：' + e + '</div>';
+            });
+    }
+</script>
 </body>
 </html>

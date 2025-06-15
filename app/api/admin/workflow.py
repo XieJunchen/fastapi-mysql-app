@@ -9,6 +9,7 @@ import os
 import json
 from typing import List
 from app.crud.workflow import add_workflow, update_workflow, delete_workflow, set_workflow_status
+from sqlalchemy import text
 
 router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), '../../templates'))

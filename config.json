@@ -1,0 +1,29 @@
+{
+  "upload": {
+    "type": "qiniu",
+    "local_dir": "./output",
+    "qiniu": {
+      "access_key": "${QINIU_ACCESS_KEY}",
+      "secret_key": "${QINIU_SECRET_KEY}",
+      "bucket_name": "${QINIU_BUCKET_NAME}",
+      "domain": "${QINIU_DOMAIN}"
+    }
+  },
+  "comfyui": {
+    "base_url": "${COMFYUI_BASE_URL}",
+    "video_url": "${COMFYUI_VIDEO_URL}"
+  },
+  "runninghub": {
+    "api_url": "${RUNNINGHUB_API_URL}",
+    "api_key": "${RUNNINGHUB_API_KEY}"
+  },
+  "douyin": {
+    "AppID": "${DOUYIN_APPID}",
+    "AppSecret": "${DOUYIN_APPSECRET}",
+    "client_key": "${DOUYIN_CLIENT_KEY}",
+    "client_secret": "${DOUYIN_CLIENT_SECRET}",
+    "openapi_token_url": "${DOUYIN_OPENAPI_TOKEN_URL}",
+    "miniapp_token_url": "${DOUYIN_MINIAPP_TOKEN_URL}",
+    "jscode2session_url": "${DOUYIN_JSCODE2SESSION_URL}"
+  }
+}

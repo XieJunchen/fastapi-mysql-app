@@ -13,4 +13,4 @@ class ExecuteRecordOut(BaseModel):
     consume_amount: Optional[float] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # 兼容 pydantic v2，原 orm_mode

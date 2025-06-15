@@ -2,15 +2,24 @@ from fastapi import APIRouter, File, UploadFile
 import os
 import uuid
 import shutil
+from app.utils.config import load_config
 
 router = APIRouter()
 
-# 读取配置（建议后续抽到 config.py）
-from app.api.execute import UPLOAD_TYPE, UPLOAD_LOCAL_DIR, QINIU_AVAILABLE, QINIU_ACCESS_KEY, QINIU_SECRET_KEY, QINIU_BUCKET_NAME, QINIU_DOMAIN
+# 全局加载 config，自动支持环境变量注入
+config_json = load_config()
+UPLOAD_TYPE = (config_json.get("upload", {}) or {}).get("type", "local")
+UPLOAD_LOCAL_DIR = (config_json.get("upload", {}) or {}).get("local_dir", "./output")
+QINIU = (config_json.get("upload", {}) or {}).get("qiniu", {})
+QINIU_ACCESS_KEY = QINIU.get("access_key", "")
+QINIU_SECRET_KEY = QINIU.get("secret_key", "")
+QINIU_BUCKET_NAME = QINIU.get("bucket_name", "")
+QINIU_DOMAIN = QINIU.get("domain", "")
 try:
     from qiniu import Auth, put_data
+    QINIU_AVAILABLE = True
 except ImportError:
-    pass
+    QINIU_AVAILABLE = False
 
 @router.post("/upload/image")
 def upload_and_forward_image(file: UploadFile = File(...)):

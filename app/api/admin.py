@@ -17,8 +17,9 @@ from sqlalchemy import or_
 from fastapi import Form
 from decimal import Decimal
 from app.crud.user import get_user_by_external
+from app.utils.config import load_config
+from sqlalchemy import text
+import logging
 
 router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), '../templates'))
-
-# 已拆分，保留文件为空或仅保留必要的import

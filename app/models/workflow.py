@@ -9,7 +9,7 @@ class Workflow(Base):
     name = Column(String(100), index=True)
     desc = Column(String(255))
     useTimes = Column(Integer, default=0)
-    workflow = Column(String(255))
+    workflow = Column(Text)
     createdTime = Column(DateTime, default=datetime.datetime.utcnow)
     picture = Column(String(255))
     bigPicture = Column(String(255))

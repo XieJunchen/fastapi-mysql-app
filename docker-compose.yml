@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  fastapi-app:
+    build: .
+    container_name: fastapi-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - TZ=Asia/Shanghai
+      - DATABASE_URL=mysql+pymysql://root:yourpassword@mysql:3306/fastapi_db
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: always
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=yourpassword
+      - MYSQL_DATABASE=fastapi_db
+      - TZ=Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./all_data_mysql.sql:/docker-entrypoint-initdb.d/all_data_mysql.sql
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+volumes:
+  mysql_data:

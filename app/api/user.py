@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 import httpx
 import json
 import os
-
 from app.db.database import get_db
 from app.schemas.user import UserOut, UserCreate
 from app.crud.user import get_users, get_user_by_external, create_user
@@ -12,8 +11,15 @@ from app.crud.execute_record import get_execute_record_list
 from app.models.user import User
 from decimal import Decimal
 from fastapi.responses import JSONResponse
+from app.utils.config import load_config
 
 router = APIRouter()
+
+config_json = load_config()
+
+def get_douyin_config():
+    douyin_cfg = config_json.get('douyin', {})
+    return douyin_cfg
 
 @router.get("/users", response_model=list[UserOut])
 def read_users_api(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
@@ -28,13 +34,6 @@ def create_user_api(user: UserCreate, db: Session = Depends(get_db)):
     if not db_user:
         raise HTTPException(status_code=400, detail="用户创建失败或已存在")
     return db_user
-
-def get_douyin_config():
-    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'config.json')
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = json.load(f)
-    douyin_cfg = config.get('douyin', {})
-    return douyin_cfg
 
 @router.post("/douyin/access_token")
 def get_douyin_access_token():

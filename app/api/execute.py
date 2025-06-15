@@ -14,6 +14,7 @@ import time
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import desc
 from app.tasks.polling import start_polling_if_needed
+from app.utils.config import load_config
 
 try:
     from qiniu import Auth, put_data
@@ -25,15 +26,8 @@ from fastapi import Request
 
 router = APIRouter()
 
-# 读取 config.json 配置
-CONFIG_JSON_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.json")
-config_json = {}
-if os.path.isfile(CONFIG_JSON_PATH):
-    try:
-        with open(CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
-            config_json = json.load(f)
-    except Exception as e:
-        print(f"读取 config.json 失败: {e}")
+# 全局加载 config，自动支持环境变量注入
+config_json = load_config()
 
 UPLOAD_TYPE = (config_json.get("upload", {}) or {}).get("type", "local")
 UPLOAD_LOCAL_DIR = (config_json.get("upload", {}) or {}).get("local_dir", "./output")

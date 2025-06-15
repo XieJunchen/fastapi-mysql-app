@@ -1,6 +1,13 @@
-FastAPI
+fastapi
 uvicorn
 mysqlclient
 sqlalchemy
 pydantic
 alembic
+requests
+jinja2
+python-multipart
+qiniu
+httpx
+pymysql
+cryptography

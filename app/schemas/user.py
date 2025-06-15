@@ -33,4 +33,4 @@ class UserOut(UserBase):
     id: int
     created_time: datetime.datetime
     class Config:
-        orm_mode = True
+        from_attributes = True  # 兼容 pydantic v2，原 orm_mode

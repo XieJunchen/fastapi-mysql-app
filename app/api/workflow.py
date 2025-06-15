@@ -4,8 +4,12 @@ from app.db.database import get_db
 from app.schemas import MyTableOut, MyTableCreate
 from app.crud.workflow import get_workflow_list, add_workflow, clear_workflow, set_workflow_status
 from app.models import Workflow
+from app.utils.config import load_config
 
 router = APIRouter()
+
+# 全局加载 config，自动支持环境变量注入
+config_json = load_config()
 
 @router.get("/workflow/list", response_model=list[MyTableOut])
 def list_workflow_api(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
