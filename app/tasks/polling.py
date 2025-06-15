@@ -78,7 +78,7 @@ def poll_latest_prompt_result(COMFYUI_API_HISTORY_SINGLE):
                     logging.info(f'[定时任务] 连续{max_empty_count}次无待处理记录，自动退出轮询线程')
                     break
             # 每次轮询间隔时间递增，避免频繁请求
-            time.sleep(5 * empty_count + 1)  
+            time.sleep(2 * empty_count + 1)  
     finally:
         db.close()
         logging.info('[定时任务] 数据库连接已关闭')
