@@ -5,13 +5,9 @@ from app.models import Workflow
 import requests
 import json
 import os
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 import uuid
-import shutil
 from app.crud import create_execute_record, update_execute_record, get_execute_record
-import threading
-import time
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import desc
 from app.tasks.polling import start_polling_if_needed
 from app.utils.config import load_config
@@ -128,7 +124,7 @@ def handle_local_workflow(db, workflow_db, params, user_id):
     if not isinstance(payload["prompt"], dict):
         return {"error": "prompt must be a dict", "actual_type": str(type(payload["prompt"])), "prompt": payload["prompt"]}
     try:
-        print(f"========>params: {payload}")
+        print(f"========>url:{COMFYUI_API_PROMPT} , params: {payload}")
         resp = requests.post(
             COMFYUI_API_PROMPT,
             json=payload,
@@ -198,34 +194,6 @@ def execute_workflow(
     else:
         raise HTTPException(status_code=400, detail="未知的workflow类型")
 
-@router.post("/workflow/history/{prompt_id}")
-def get_comfyui_history(
-    prompt_id: str, 
-    db: Session = Depends(get_db),
-    params: dict = Body(default={})
-):
-    """查询 comfyUI 任务历史和输出结果，优先查本地执行记录表，并自动更新执行记录"""
-    user_id = params.get("userId") if isinstance(params, dict) else None
-    record = get_execute_record(db, prompt_id)
-    if record and record.status == "finished" and record.result:
-        return {"msg": "本地缓存命中", "data": record.result, "prompt_id": prompt_id}
-    # 否则走原有逻辑
-    try:
-        resp = requests.get(COMFYUI_API_HISTORY_SINGLE.format(prompt_id=prompt_id), timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-        print(f"查询comfyUI任务历史数据: {data}")
-        # 自动更新本地执行记录表
-        if data:
-            # 判断是否有 outputs 或其它关键字段
-            status = "finished" if data.get("outputs") else "pending"
-            messages = data.get('status', {}).get('messages', [])
-            update_execute_record(db, prompt_id, status=status, result=data, messages=messages)
-        return {"msg": "查询comfyUI任务历史成功", "data": data, "prompt_id": prompt_id}
-    except Exception as e:
-        update_execute_record(db, prompt_id, status="failed")
-        return {"msg": "查询comfyUI任务历史异常", "error": str(e), "prompt_id": prompt_id}
-
 @router.get("/workflow/view")
 def get_comfyui_view(filename: str):
     """获取 comfyUI 生成的图片或中间结果（直接透传图片内容）"""
@@ -250,10 +218,10 @@ def get_comfyui_intermediate(prompt_id: str):
         return {"msg": "查询comfyUI中间结果异常", "error": str(e), "prompt_id": prompt_id}
 
 def parse_outputs_from_schema(outputs, output_schema):
-    """根据 output_schema 解析 outputs，返回图片url等结果。支持多层嵌套和常见图片/文本结构。"""
+    """严格根据 output_schema 解析 outputs，支持多图，未命中时不做兼容兜底。"""
     result = {"image_url": None}
     image_urls = []
-    # 优先按 output_schema 路径解析
+    # 只按 output_schema 路径解析
     if output_schema and 'outputs' in output_schema:
         for item in output_schema['outputs']:
             path = item.get('path')
@@ -274,11 +242,10 @@ def parse_outputs_from_schema(outputs, output_schema):
                             node = node.get(part) if isinstance(node, dict) else None
                         if node is None:
                             break
-                    # 支持 node 为图片url、图片url列表、images结构、text结构
+                    # 只支持 node 为图片url、图片url列表、images结构、text结构
                     if isinstance(node, str):
                         image_urls.append(node)
                     elif isinstance(node, list):
-                        # 可能是图片url列表或嵌套
                         for n in node:
                             if isinstance(n, str):
                                 image_urls.append(n)
@@ -291,30 +258,7 @@ def parse_outputs_from_schema(outputs, output_schema):
                             image_urls.append(f"{COMFYUI_API_VIEW}?filename={node['filename']}")
                 except Exception:
                     pass
-    # 如果 output_schema 没有命中，或未配置，兼容原图片逻辑和 text 逻辑
-    if not image_urls:
-        if isinstance(outputs, dict):
-            for v in outputs.values():
-                # 兼容 images 字段
-                images = v.get('images') if isinstance(v, dict) else None
-                if images and isinstance(images, list):
-                    for img in images:
-                        if 'filename' in img:
-                            image_urls.append(f"{COMFYUI_API_VIEW}?filename={img['filename']}")
-                # 兼容 text 字段（如为图片url字符串或列表）
-                text = v.get('text') if isinstance(v, dict) else None
-                if text:
-                    if isinstance(text, str):
-                        image_urls.append(text)
-                    elif isinstance(text, list):
-                        # 递归展开所有层级的字符串
-                        def extract_strs(lst):
-                            for t in lst:
-                                if isinstance(t, str):
-                                    image_urls.append(t)
-                                elif isinstance(t, list):
-                                    extract_strs(t)
-                        extract_strs(text)
+    # 严格模式：output_schema 没命中就返回空，不再 fallback
     if image_urls:
         if len(image_urls) == 1:
             result = {"image_url": image_urls[0]}
@@ -351,9 +295,11 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
         # 拆分：输出解析单独函数
         result = parse_outputs_from_schema(outputs, output_schema)
         # 自动更新本地执行记录表
-        status = "finished" if outputs else "failed"
-        update_execute_record(db, prompt_id, status=status, result={"outputs": result}, messages=messages)
-        return {"msg": "解析成功", "outputs": result, "prompt_id": prompt_id}
+        if outputs:
+            update_execute_record(db, prompt_id, status='finished', result={"outputs": result}, messages=messages)
+            return {"msg": "解析成功", "outputs": result, "prompt_id": prompt_id}
+        else:
+            return {"msg": "任务还在进行中，请稍后再试", "outputs": {}, "prompt_id": prompt_id}
     except Exception as e:
         update_execute_record(db, prompt_id, status="failed")
         return {"msg": "查询comfyUI最终结果异常", "error": str(e), "prompt_id": prompt_id}

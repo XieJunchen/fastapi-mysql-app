@@ -1,8 +1,11 @@
 import os
 import json
 import re
+from dotenv import load_dotenv
 
 ENV_VAR_PATTERN = re.compile(r'\$\{([A-Z0-9_]+)\}')
+
+_config_cache = None  # 全局缓存
 
 def _replace_env_vars(obj):
     if isinstance(obj, dict):
@@ -18,9 +21,17 @@ def _replace_env_vars(obj):
         return obj
 
 def load_config(path="config.json"):
+    global _config_cache
+    if _config_cache is not None:
+        return _config_cache
+    load_dotenv()
+    
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
-    return _replace_env_vars(raw)
+    config = _replace_env_vars(raw)
+    _config_cache = config
+    print(f"配置文件 {path} 加载成功，已替换环境变量 config:{config}")
+    return config
 
 # 用法：
 # config = load_config()
