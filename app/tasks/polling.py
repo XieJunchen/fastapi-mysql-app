@@ -62,8 +62,6 @@ def sync_prompts_to_db(db, prompt_items):
 def poll_latest_prompt_result(COMFYUI_API_HISTORY_SINGLE):
     empty_count = 0  # 连续无待处理记录的计数
     max_empty_count = 10  # 阈值，连续10次无记录则自动退出
-    max_poll_count = 60  # 单个prompt最多轮询次数（如5秒一次，60次约5分钟）
-    prompt_poll_count = {}  # 记录每个prompt_id的轮询次数
     from app.api.execute import COMFYUI_API_HISTORY  # 避免循环引用
     db = SessionLocal()
     try:
@@ -79,7 +77,8 @@ def poll_latest_prompt_result(COMFYUI_API_HISTORY_SINGLE):
                 if empty_count >= max_empty_count:
                     logging.info(f'[定时任务] 连续{max_empty_count}次无待处理记录，自动退出轮询线程')
                     break
-            time.sleep(5)
+            # 每次轮询间隔时间递增，避免频繁请求
+            time.sleep(5 * empty_count + 1)  
     finally:
         db.close()
         logging.info('[定时任务] 数据库连接已关闭')
