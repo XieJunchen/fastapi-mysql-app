@@ -219,7 +219,7 @@ def get_comfyui_intermediate(prompt_id: str):
 
 def parse_outputs_from_schema(outputs, output_schema):
     """严格根据 output_schema 解析 outputs，支持多图，未命中时不做兼容兜底。"""
-    result = {"image_url": None}
+    result = None
     image_urls = []
     # 只按 output_schema 路径解析
     if output_schema and 'outputs' in output_schema:
@@ -264,8 +264,6 @@ def parse_outputs_from_schema(outputs, output_schema):
             result = {"image_url": image_urls[0]}
         else:
             result = {"list_image_url": image_urls}
-    else:
-        result = {"image_url": None}
     return result
 
 @router.get("/workflow/final/{prompt_id}")

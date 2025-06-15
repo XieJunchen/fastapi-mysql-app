@@ -48,7 +48,8 @@ def sync_prompts_to_db(db, prompt_items):
                 # 导入 parse_outputs_from_schema
                 from app.api.execute import parse_outputs_from_schema
                 std_outputs = parse_outputs_from_schema(outputs, output_schema)
-                update_list.append((pid, std_outputs, messages))
+                if std_outputs:
+                    update_list.append((pid, std_outputs, messages))
     # 批量更新
     for pid, std_outputs, messages in update_list:
         update_execute_record(db, pid, status="finished", result={"outputs": std_outputs}, messages=messages)
