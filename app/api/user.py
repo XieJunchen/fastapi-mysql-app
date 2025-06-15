@@ -172,13 +172,18 @@ def get_user_execute_records(
         consume_amount = None
         if r.result and isinstance(r.result, dict):
             consume_amount = r.result.get('consume_amount', 0.0)
+        output_value = get_output_value(r.result) if r.result else None
+        if not output_value:
+            continue  # 如果没有图片链接，则跳过该记录
         result.append({
             "id": r.id,
+            "workflow_id": r.workflow_id,
             "user_id": r.user_id,
             "created_time": r.created_time.strftime('%Y-%m-%d %H:%M:%S') if r.created_time else None,
             "execute_timeout": r.execute_timeout,
             "result": r.result,
             "status": r.status,
+            "output": output_value,
             "consume_amount": consume_amount
         })
     return JSONResponse(content={"total": total, "items": result})
@@ -205,3 +210,28 @@ def get_user_profile(
         "photo": 'http://swqqsa5wv.hb-bkt.clouddn.com/admin/comfyui_85cc31c28dc44507b48405613872bf6c.png',
         "avatar": avatar
     }
+
+def get_output_value(result_json):
+    """
+    从 result_json（str 或 dict）中提取 outputs 里的主要内容（支持图片、视频、文本等）
+    返回 dict，包含所有类型的输出
+    """
+    if isinstance(result_json, str):
+        try:
+            data = json.loads(result_json)
+        except Exception:
+            return None
+    else:
+        data = result_json
+
+    outputs = data.get("outputs", {})
+    # 常见类型字段
+    result = {}
+    if "image_url" in outputs:
+        result["image_url"] = outputs["image_url"]
+    if "video_url" in outputs:
+        result["video_url"] = outputs["video_url"]
+    if "text" in outputs:
+        result["text"] = outputs["text"]
+    # 其它类型可按需扩展
+    return result
