@@ -7,6 +7,8 @@ services:
       - "8001:8001"
     volumes:
       - .:/app
+    env_file:
+      - .env
     environment:
       - TZ=Asia/Shanghai
       - DATABASE_URL=mysql+pymysql://root:yourpassword@mysql:3306/fastapi_db
