@@ -1,3 +1,25 @@
 .env
+# Python
 *.pyc
+*.pyo
+*.pyd
 __pycache__/
+
+# 虚拟环境
+venv/
+env/
+
+# 编辑器配置
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+
+# 日志和数据库
+*.log
+*.db
+*.sqlite3
+
+# 输出目录
+output/
