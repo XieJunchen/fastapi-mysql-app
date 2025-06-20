@@ -152,6 +152,9 @@ QINIU_DOMAIN=your_domain
 # ComfyUI 配置
 COMFYUI_BASE_URL=http://localhost:8188
 COMFYUI_VIDEO_URL=http://localhost:8188/video
+## 容器内的 localhost 指向的是容器自身，而不是你的宿主机，因此需要使用 host.docker.internal 代替 localhost
+COMFYUI_BASE_URL=http://host.docker.internal:8188
+COMFYUI_VIDEO_URL=http://host.docker.internal:8188/video
 
 # RunningHub 配置
 RUNNINGHUB_API_URL=https://api.runninghub.com
