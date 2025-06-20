@@ -11,3 +11,4 @@ qiniu
 httpx
 pymysql
 cryptography
+python-dotenv

@@ -8,6 +8,7 @@ import os
 from fastapi.responses import FileResponse
 import uuid
 from app.crud import create_execute_record, update_execute_record, get_execute_record
+from app.crud.execute_record import update_execute_record_by_id, delete_execute_record_by_id
 from sqlalchemy import desc
 from app.tasks.polling import start_polling_if_needed
 from app.utils.config import load_config
@@ -19,6 +20,7 @@ except ImportError:
     QINIU_AVAILABLE = False
 
 from fastapi import Request
+from app.models.execute_record import ExecuteRecord
 
 router = APIRouter()
 
@@ -302,3 +304,5 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
     except Exception as e:
         update_execute_record(db, prompt_id, status="failed")
         return {"msg": "查询comfyUI最终结果异常", "error": str(e), "prompt_id": prompt_id}
+
+# 已迁移到 record.py，相关接口请在 app/api/record.py 维护

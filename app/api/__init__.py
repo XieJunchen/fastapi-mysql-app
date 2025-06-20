@@ -14,6 +14,7 @@ from .workflow import router as workflow_router
 from .execute import router as execute_router
 from .admin import router as admin_router
 from .upload import router as upload_router
+from .record import router as record_router
 
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), '../templates'))
 
@@ -23,6 +24,7 @@ router.include_router(workflow_router)
 router.include_router(execute_router)
 router.include_router(admin_router)
 router.include_router(upload_router)
+router.include_router(record_router)
 
 @router.get("/users", response_model=list[UserOut])
 def read_users_api(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):

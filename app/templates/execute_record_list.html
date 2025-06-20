@@ -157,10 +157,10 @@
             </div>
             <table>
                 <tr>
-                    <th>ID</th><th>用户ID</th><th>工作流ID</th><th>PromptID</th><th>状态</th><th>耗时</th><th>结果</th><th>创建时间</th><th>更新时间</th>
+                    <th>ID</th><th>用户ID</th><th>工作流ID</th><th>PromptID</th><th>状态</th><th>耗时</th><th>结果</th><th>可见性</th><th>创建时间</th><th>更新时间</th><th>操作</th>
                 </tr>
                 {% for r in records %}
-                <tr>
+                <tr id="record-row-{{ r.id }}">
                     <td>{{ r.id }}</td>
                     <td>{{ r.user_id }}</td>
                     <td>{{ r.workflow_id }}</td>
@@ -181,10 +181,15 @@
                             -
                         {% endif %}
                     </td>
+                    <td id="public-cell-{{ r.id }}">{{ '所有人可见' if r.is_public else '仅自己可见' }}</td>
                     <td>{{ r.created_time }}</td>
                     <td>{{ r.updated_time }}</td>
                     <td>
-                        <button onclick="openEditModal('{{ r.id }}', '{{ r.status }}', '{{ r.execute_timeout }}', this.getAttribute('data-result'))" data-result='{{ r.result | tojson | replace("'", "&#39;") | safe }}'>编辑</button>
+                        <button onclick="togglePublish('{{ r.id }}')">{{ '取消发布' if r.is_public else '发布' }}</button>
+                        <button onclick="deleteRecord('{{ r.id }}')" style="color:#f56c6c;">删除</button>
+                        <button 
+    onclick="openEditModal(this, '{{ r.id }}', '{{ r.status }}', '{{ r.execute_timeout }}')"
+    data-result='{{ r.result | tojson | escape | safe }}'>编辑</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -241,17 +246,16 @@ function clearEmptyIntFields(form) {
     }
     return true;
 }
-function openEditModal(id, status, timeout, result) {
+function openEditModal(btn, id, status, timeout) {
   document.getElementById('edit-id').value = id;
   document.getElementById('edit-status').value = status;
   document.getElementById('edit-timeout').value = timeout;
+  let result = btn.dataset.result;
   let obj = result;
-  if (typeof result === 'string') {
-    try {
-      obj = JSON.parse(result);
-    } catch(e) {
-      obj = result;
-    }
+  try {
+    obj = JSON.parse(result);
+  } catch(e) {
+    obj = result;
   }
   document.getElementById('edit-result').value = typeof obj === 'object' ? JSON.stringify(obj, null, 2) : obj;
   document.getElementById('edit-modal').style.display = 'flex';
@@ -281,6 +285,31 @@ async function submitEditForm() {
     alert('更新失败');
   }
   return false;
+}
+function togglePublish(id) {
+    fetch(`/record/${id}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.is_public !== undefined) {
+            document.getElementById(`public-cell-${id}`).innerText = data.is_public ? '所有人可见' : '仅自己可见';
+            const btn = document.querySelector(`#record-row-${id} button[onclick^='togglePublish']`);
+            if (btn) btn.innerText = data.is_public ? '取消发布' : '发布';
+        }
+    });
+}
+function deleteRecord(id) {
+    if (!confirm('确定要删除该记录吗？')) return;
+    fetch(`/record/${id}`, { method: 'DELETE' })
+    .then(res => res.json())
+    .then(data => {
+        if (data.msg && data.msg.includes('已删除')) {
+            const row = document.getElementById(`record-row-${id}`);
+            if (row) row.remove();
+        }
+    });
 }
 </script>
 </body>

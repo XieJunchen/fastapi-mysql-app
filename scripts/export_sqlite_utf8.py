@@ -21,6 +21,10 @@ def sqlite_to_mysql(sqlite_line):
     if line.strip().startswith('CREATE TABLE'):
         line = line.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS', 1)
         line = re.sub(r'"([^"]+)"', r'`\1`', line)
+        # 强制将 table_workflow 的 workflow 字段类型替换为 TEXT
+        if '`table_workflow`' in line:
+            # 用正则替换 workflow 字段类型为 TEXT
+            line = re.sub(r'(workflow\s+)[^,\)]+', r'\1TEXT', line)
         # 修正 text(N) 为 TEXT
         line = re.sub(r'TEXT\s*\(\s*\d+\s*\)', 'TEXT', line, flags=re.IGNORECASE)
         return line
@@ -75,6 +79,8 @@ def export_sqlite_and_mysql(db_path, sqlite_sql_path, mysql_sql_path):
         with open(sqlite_sql_path, 'w', encoding='utf-8') as f_sqlite, \
              open(mysql_sql_path, 'w', encoding='utf-8') as f_mysql:
             f_mysql.write('SET NAMES utf8mb4;\n')
+            f_mysql.write('SET CHARACTER SET utf8mb4;\n')
+            f_mysql.write('SET character_set_connection=utf8mb4;\n')
             for line in conn.iterdump():
                 f_sqlite.write(f'{line}\n')
                 mysql_line = sqlite_to_mysql(line)

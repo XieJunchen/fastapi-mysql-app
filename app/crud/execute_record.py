@@ -61,6 +61,17 @@ def update_execute_record_by_id(db: Session, record_id: int, update_dict: dict):
     print(f"[update_execute_record_by_id] id={record_id} 字段已更新: {update_dict}")
     return record
 
+def delete_execute_record_by_id(db: Session, record_id: int):
+    """根据主键ID删除执行记录。"""
+    record = db.query(ExecuteRecord).filter(ExecuteRecord.id == record_id).first()
+    if not record:
+        print(f"[delete_execute_record_by_id] id={record_id} 不存在，无法删除")
+        return False
+    db.delete(record)
+    db.commit()
+    print(f"[delete_execute_record_by_id] id={record_id} 已删除")
+    return True
+
 def get_execute_record(db: Session, prompt_id: str):
     return db.query(ExecuteRecord).filter(ExecuteRecord.prompt_id == prompt_id).first()
 
