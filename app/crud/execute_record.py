@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.execute_record import ExecuteRecord
 import datetime
+from app.utils.logger import logger
 
 def create_execute_record(db: Session, workflow_id: int, prompt_id: str, status: str = "pending", result=None, user_id=None, execute_timeout=None):
     record = ExecuteRecord(
@@ -32,11 +33,11 @@ def update_execute_record(db: Session, prompt_id: str, status: str, result=None,
     if rows:
         db.commit()
         record = db.query(ExecuteRecord).filter(ExecuteRecord.prompt_id == prompt_id).first()
-        print(f"[update_execute_record] prompt_id={prompt_id} 状态已更新为{status}")
+        logger.info(f"[更新记录] prompt_id={prompt_id} 状态已更新为{status}")
         return record
     else:
         record = db.query(ExecuteRecord).filter(ExecuteRecord.prompt_id == prompt_id).first()
-        print(f"[update_execute_record] prompt_id={prompt_id} 已是finished或不存在，跳过更新")
+        logger.info(f"[更新记录] prompt_id={prompt_id} 已是finished或不存在，跳过更新")
         return record
 
 def update_execute_record_by_id(db: Session, record_id: int, update_dict: dict):
@@ -46,7 +47,7 @@ def update_execute_record_by_id(db: Session, record_id: int, update_dict: dict):
     """
     record = db.query(ExecuteRecord).filter(ExecuteRecord.id == record_id).first()
     if not record:
-        print(f"[update_execute_record_by_id] id={record_id} 不存在，无法更新")
+        logger.info(f"[更新记录] id={record_id} 不存在，无法更新")
         return None
     for k, v in update_dict.items():
         if k == 'execute_timeout' and v is not None:
@@ -58,18 +59,18 @@ def update_execute_record_by_id(db: Session, record_id: int, update_dict: dict):
     record.updated_time = datetime.datetime.utcnow()
     db.commit()
     db.refresh(record)
-    print(f"[update_execute_record_by_id] id={record_id} 字段已更新: {update_dict}")
+    logger.info(f"[更新记录] id={record_id} 字段已更新: {update_dict}")
     return record
 
 def delete_execute_record_by_id(db: Session, record_id: int):
     """根据主键ID删除执行记录。"""
     record = db.query(ExecuteRecord).filter(ExecuteRecord.id == record_id).first()
     if not record:
-        print(f"[delete_execute_record_by_id] id={record_id} 不存在，无法删除")
+        logger.info(f"[删除记录] id={record_id} 不存在，无法删除")
         return False
     db.delete(record)
     db.commit()
-    print(f"[delete_execute_record_by_id] id={record_id} 已删除")
+    logger.info(f"[删除记录] id={record_id} 已删除")
     return True
 
 def get_execute_record(db: Session, prompt_id: str):
@@ -107,7 +108,6 @@ def calculate_timeout(messages):
                 startTime = item[1].get("timestamp")
             elif item[0] == "execution_success":
                 endTime = item[1].get("timestamp")
-    print(f"Start Time: {startTime}, End Time: {endTime}")
     if startTime and endTime:
         total_time = (endTime - startTime) / 1000  # 转换为秒
     return total_time

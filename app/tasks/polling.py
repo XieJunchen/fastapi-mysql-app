@@ -6,10 +6,7 @@ from sqlalchemy import desc
 from app.db.database import SessionLocal
 from app.crud.execute_record import get_execute_record_list, update_execute_record
 from app.models.workflow import Workflow
-import logging
-
-# 配置日志
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s')
+from app.utils.logger import logger
 
 # 全局定时任务控制变量
 polling_thread = None
@@ -21,10 +18,10 @@ def get_comfyui_history(COMFYUI_API_HISTORY):
         if resp.status_code == 200:
             return resp.json()
         else:
-            logging.warning(f'[定时任务] 请求API失败，状态码: {resp.status_code}')
+            logger.warning(f'[定时任务] 请求API失败，状态码: {resp.status_code}')
             return None
     except Exception as e:
-        logging.error(f"[定时任务] comfyUI history 批量同步异常: {e}")
+        logger.error(f"[定时任务] comfyUI history 批量同步异常: {e}")
         return None
 
 def sync_prompts_to_db(db, prompt_items):
@@ -55,7 +52,7 @@ def sync_prompts_to_db(db, prompt_items):
         update_execute_record(db, pid, status="finished", result={"outputs": std_outputs}, messages=messages)
     if update_list:
         db.commit()
-        logging.info(f"[定时任务] 本次批量同步 {len(update_list)} 条prompt记录, update_list:{update_list}")
+        logger.info(f"[定时任务] 本次批量同步 {len(update_list)} 条prompt记录, update_list:{update_list}")
 
 def poll_latest_prompt_result():
     empty_count = 0  # 连续无待处理记录的计数
@@ -71,24 +68,24 @@ def poll_latest_prompt_result():
                 empty_count = 0
             else:
                 empty_count += 1
-                logging.info(f'[定时任务] 暂无待处理的prompt记录，已连续{empty_count}次')
+                logger.info(f'[定时任务] 暂无待处理的prompt记录，已连续{empty_count}次')
                 if empty_count >= max_empty_count:
-                    logging.info(f'[定时任务] 连续{max_empty_count}次无待处理记录，自动退出轮询线程')
+                    logger.info(f'[定时任务] 连续{max_empty_count}次无待处理记录，自动退出轮询线程')
                     break
             # 指数级延迟，避免空转浪费资源
             delay = min(2 ** empty_count, 300)  # 最大延迟限制为5分钟
             time.sleep(delay)
     finally:
         db.close()
-        logging.info('[定时任务] 数据库连接已关闭')
+        logger.info('[定时任务] 数据库连接已关闭')
 
 def start_polling_if_needed():
     global polling_thread
     with polling_thread_lock:
         if polling_thread is None or not polling_thread.is_alive():
-            logging.info('[定时任务] 线程未启动，准备启动...')
+            logger.info('[定时任务] 线程未启动，准备启动...')
             polling_thread = threading.Thread(target=poll_latest_prompt_result, daemon=True)
             polling_thread.start()
-            logging.info('[定时任务] 线程已启动')
+            logger.info('[定时任务] 线程已启动')
         else:
-            logging.info('[定时任务] 线程已在运行，无需重复启动')
+            logger.info('[定时任务] 线程已在运行，无需重复启动')

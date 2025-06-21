@@ -12,6 +12,7 @@ from app.crud.execute_record import update_execute_record_by_id, delete_execute_
 from sqlalchemy import desc
 from app.tasks.polling import start_polling_if_needed
 from app.utils.config import load_config
+from app.utils.logger import logger
 
 try:
     from qiniu import Auth, put_data
@@ -43,7 +44,7 @@ COMFYUI_API_HISTORY = f"{COMFYUI_BASE_URL}/api/history?max_items=64"
 COMFYUI_API_PROMPT = f"{COMFYUI_BASE_URL}/api/prompt"
 COMFYUI_API_VIEW = f"{COMFYUI_BASE_URL}/api/view"
 COMFYUI_API_UPLOAD_IMAGE = f"{COMFYUI_BASE_URL}/api/upload/image"
-COMFYUI_API_HISTORY_SINGLE = f"{COMFYUI_BASE_URL}/history/{{prompt_id}}"
+COMFYUI_API_HISTORY_SINGLE = f"{COMFYUI_BASE_URL}/api/history/{{prompt_id}}"
 
 def get_user_id_from_params(db, params):
     """从参数中获取 user_id，如果未授权或未登录返回错误信息。"""
@@ -78,7 +79,7 @@ def inject_input_schema_params(prompt, params, input_schema):
                 if node is not None and isinstance(node, dict):
                     node[keys[-1]] = params[param_key]
     except Exception as e:
-        print(f"input_schema注入参数异常: {e}")
+        logger.error(f"input_schema注入参数异常: {e}")
     return prompt
 
 def build_comfyui_payload(flow_data, params, client_id):
@@ -126,7 +127,7 @@ def handle_local_workflow(db, workflow_db, params, user_id):
     if not isinstance(payload["prompt"], dict):
         return {"error": "prompt must be a dict", "actual_type": str(type(payload["prompt"])), "prompt": payload["prompt"]}
     try:
-        ## print(f"========>url:{COMFYUI_API_PROMPT} , params: {payload}")
+        logger.info(f"========>url:{COMFYUI_API_PROMPT} prompt: {payload['prompt']}")
         resp = requests.post(
             COMFYUI_API_PROMPT,
             json=payload,
@@ -185,7 +186,7 @@ def execute_workflow(
     user_id, user_error = get_user_id_from_params(db, params)
     if user_error:
         return user_error
-    ## print(f"========>params: {params}")
+    logger.info(f"========>params: {params}")
     workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id).first()
     if not workflow_db:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -278,13 +279,15 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
         return {"msg": "本地缓存命中", "outputs": outputs, "prompt_id": prompt_id}
     # 2. 本地未命中，查 comfyUI
     try:
-        resp = requests.get(COMFYUI_API_HISTORY, timeout=15)
+        url = COMFYUI_API_HISTORY_SINGLE.format(prompt_id=prompt_id)
+        resp = requests.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         resp_data = data.get(prompt_id, {})
         outputs = resp_data.get('outputs', {})
         messages = resp_data.get('status', {}).get('messages', [])
-        workflow_id_val = workflow_id if workflow_id is not None else resp_data.get('workflow_id')
+        logger.info(f"========>查询comfyUI最终结果，prompt_id: {prompt_id}, outputs: {json.dumps(outputs, ensure_ascii=False)} messages: {messages}")
+        workflow_id_val = workflow_id if workflow_id is not None else record.workflow_id
         workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id_val).first() if workflow_id_val else None
         output_schema = None
         if workflow_db and getattr(workflow_db, 'output_schema', None):
@@ -296,12 +299,13 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
         result = parse_outputs_from_schema(outputs, output_schema)
         # 自动更新本地执行记录表
         if result:
-            ## print(f"========>更新执行记录 {prompt_id}，状态: finished", f"结果: {result}, messages: {messages}")
+            logger.info(f"========>更新执行记录 {prompt_id}，状态: finished", f"结果: {result}, messages: {messages}")
             update_execute_record(db, prompt_id, status='finished', result={"outputs": result}, messages=messages)
             return {"msg": "解析成功", "outputs": result, "prompt_id": prompt_id}
         else:
             return {"msg": "任务还在进行中，请稍后再试", "outputs": {}, "prompt_id": prompt_id}
     except Exception as e:
+        logger.error(f"查询 comfyUI 最终结果异常: {e}")
         update_execute_record(db, prompt_id, status="failed")
         return {"msg": "查询comfyUI最终结果异常", "error": str(e), "prompt_id": prompt_id}
 

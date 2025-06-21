@@ -10,6 +10,7 @@ from app.models.user import User
 from decimal import Decimal
 from fastapi.responses import JSONResponse
 from app.utils.config import load_config
+from app.utils.logger import logger
 
 router = APIRouter()
 
@@ -89,13 +90,13 @@ def async_create_user(source: str, openid: str):
     from app.crud.user import get_user_by_external, create_user
     from app.schemas.user import UserCreate
     from sqlalchemy.exc import IntegrityError
-    print(f"异步创建用户: source={source}, openid={openid}")
+    logger.info(f"异步创建用户: source={source}, openid={openid}")
     db_async = SessionLocal()
     try:
         # 防重：先查是否已存在
         exist_user = get_user_by_external(db_async, source, openid)
         if exist_user:
-            print(f"用户已存在: source={source}, external_user_id={openid}")
+            logger.info(f"用户已存在: source={source}, external_user_id={openid}")
             return
         user_in = UserCreate(
             source=source,
@@ -106,7 +107,7 @@ def async_create_user(source: str, openid: str):
             create_user(db_async, user_in)
         except IntegrityError:
             db_async.rollback()
-            print(f"并发下唯一约束拦截，未重复创建: source={source}, external_user_id={openid}")
+            logger.info(f"并发下唯一约束拦截，未重复创建: source={source}, external_user_id={openid}")
     finally:
         db_async.close()
 
@@ -121,7 +122,7 @@ def douyin_login(
     appid = douyin_cfg.get('AppID')
     secret = douyin_cfg.get('AppSecret')
     url = douyin_cfg.get('jscode2session_url')
-    print(f"Douyin login params: {params}")
+    logger.info(f"Douyin login params: {params}")
     code = params.get("code")
     if not appid or not secret:
         raise HTTPException(status_code=500, detail="Douyin AppID 或 AppSecret 未配置")

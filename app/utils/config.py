@@ -2,6 +2,7 @@ import os
 import json
 import re
 from dotenv import load_dotenv
+from app.utils.logger import logger
 
 ENV_VAR_PATTERN = re.compile(r'\$\{([A-Z0-9_]+)\}')
 
@@ -30,7 +31,7 @@ def load_config(path="config.json"):
         raw = json.load(f)
     config = _replace_env_vars(raw)
     _config_cache = config
-    print(f"配置文件 {path} 加载成功，已替换环境变量 config:{config}")
+    logger.info(f"[启动]配置文件 {path} 加载成功，已替换环境变量 config:{config}")
     return config
 
 # 用法：
