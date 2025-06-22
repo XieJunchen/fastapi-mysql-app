@@ -82,10 +82,9 @@ def inject_input_schema_params(prompt, params, input_schema):
         logger.error(f"input_schema注入参数异常: {e}")
     return prompt
 
-def build_comfyui_payload(flow_data, params, client_id):
+def build_comfyui_payload(flow_data, prompt, client_id):
     """构建 comfyUI API 所需的 payload。"""
-    extra_data = flow_data.get("extra_data") or getattr(params, "extra_data", {})
-    prompt = flow_data.get("prompt") or getattr(params, "prompt", {})
+    extra_data = flow_data.get("extra_data") 
     return {
         "client_id": client_id,
         "prompt": prompt,
@@ -121,13 +120,19 @@ def handle_local_workflow(db, workflow_db, params, user_id):
     prompt = flow_data.get("prompt") or getattr(params, "prompt", {})
     input_schema = getattr(workflow_db, "input_schema", None)
     if input_schema:
-        prompt = inject_input_schema_params(prompt, params, input_schema)
-    payload = build_comfyui_payload(flow_data, params, client_id)
+       prompt = inject_input_schema_params(prompt, params, input_schema)
+    payload = build_comfyui_payload(flow_data, prompt, client_id)
+    # # 写入 payload 到本地文件，便于调试
+    # try:
+    #     with open(r"D:\PythonProject\fastApp\comfyUI_workflow\payload_debug.json", "w", encoding="utf-8") as f:
+    #         json.dump(payload, f, ensure_ascii=False, indent=2)
+    # except Exception as e:
+    #     logger.error(f"写入payload_debug.json失败: {e}")
     headers = build_comfyui_headers()
     if not isinstance(payload["prompt"], dict):
         return {"error": "prompt must be a dict", "actual_type": str(type(payload["prompt"])), "prompt": payload["prompt"]}
     try:
-        logger.info(f"========>url:{COMFYUI_API_PROMPT} prompt: {payload['prompt']}")
+        logger.info(f"========>url:{COMFYUI_API_PROMPT}")
         resp = requests.post(
             COMFYUI_API_PROMPT,
             json=payload,
