@@ -166,12 +166,13 @@
                         html += '<table style="width:100%;font-size:15px;"><tr><th>节点</th><th>类型</th><th>参数</th><th>路径</th><th>类型</th><th>别名(alias)</th><th>选择</th></tr>';
                         for(let p of params){
                             let type = (p.type||'').toUpperCase();
-                            if(['IMG','STR','VIDEO'].indexOf(type)===-1) type = 'STR';
+                            if(['IMG','STR','VIDEO','BOOLEAN'].indexOf(type)===-1) type = 'STR';
                             html += `<tr><td>${p.node_id}</td><td>${p.node_type}</td><td>${p.param}</td><td>${p.path}</td><td>`+
                                 `<select class='input-type' data-path='${p.path}' data-name='${p.param}'>`+
                                 `<option value='IMG' ${type==='IMG'?'selected':''}>IMG</option>`+
                                 `<option value='STR' ${type==='STR'?'selected':''}>STR</option>`+
                                 `<option value='VIDEO' ${type==='VIDEO'?'selected':''}>VIDEO</option>`+
+                                `<option value='BOOLEAN' ${type==='BOOLEAN'?'selected':''}>BOOLEAN</option>`+
                                 `</select></td>`+
                                 `<td><input class='input-alias' data-path='${p.path}' data-name='${p.param}' style='width:90px;' placeholder='可选'></td>`+
                                 `<td><input type='checkbox' class='input-param' data-path='${p.path}' data-name='${p.param}'></td></tr>`;

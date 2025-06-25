@@ -291,7 +291,7 @@ def get_comfyui_final(prompt_id: str, workflow_id: int = None, db: Session = Dep
         resp_data = data.get(prompt_id, {})
         outputs = resp_data.get('outputs', {})
         messages = resp_data.get('status', {}).get('messages', [])
-        logger.info(f"========>查询comfyUI最终结果，prompt_id: {prompt_id}, outputs: {json.dumps(outputs, ensure_ascii=False)} messages: {messages}")
+        # logger.info(f"========>查询comfyUI最终结果，prompt_id: {prompt_id}, outputs: {json.dumps(outputs, ensure_ascii=False)} messages: {messages}")
         workflow_id_val = workflow_id if workflow_id is not None else record.workflow_id
         workflow_db = db.query(Workflow).filter(Workflow.id == workflow_id_val).first() if workflow_id_val else None
         output_schema = None

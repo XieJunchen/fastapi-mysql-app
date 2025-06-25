@@ -113,6 +113,7 @@ def get_all_execute_records(
                 "tags": getattr(wf, "tags", ["风景", "AI", "自然"]),
                 "picture": getattr(wf, "picture", ""),
                 "category": getattr(wf, "flowType", ""),
+                "result_type": getattr(wf, "result_type", "text")
             }
     user_map = {user.id: user for user in db.query(User).filter(User.id.in_(user_ids)).all()}
     result = []
@@ -139,6 +140,7 @@ def get_all_execute_records(
                 "likes": random.randint(0, 1000),
                 "tags": workflow_info["tags"] or [],
                 "title": workflow_info["name"] or "",
+                "result_type": workflow_info["result_type"] or "",
                 "views": random.randint(0, 1000)
             }
         )
